@@ -74,6 +74,16 @@ app.post("/api/auth/register", async (req, res) => {
       });
     }
 
+    const strongPassword =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
+
+    if (!strongPassword.test(password)) {
+      return res.status(400).json({
+        error:
+          "Parola en az 8 karakter, büyük harf, küçük harf, rakam ve sembol içermelidir.",
+      });
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     const passwordHash = await argon2.hash(password, {
       type: argon2.argon2id,
