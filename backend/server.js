@@ -1,40 +1,167 @@
+const path = require("path");
+const express = require("express");
+const cors = require("cors");
+const { Pool } = require("pg");
+const argon2 = require("argon2");
+const jwt = require("jsonwebtoken");
 
-const express = require('express');
-const { Pool } = require('pg'); //PostgreSQL'e bağlantı kurmak ve sorgular çalıştırmak için
-require('dotenv').config({ path: '../.env' }); //Ortam değişkenlerini okumayı sağlıyor
+require("dotenv").config({
+  path: path.resolve(__dirname, "..", ".env"),
+});
 
 const app = express();
 const port = 3000;
 
-// PostgreSQL bağlantı ayarları
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET .env dosyasında bulunamadı.");
+}
+
 const db = new Pool({
-  host: 'localhost',
+  host: "localhost",
   port: process.env.POSTGRES_PORT || 5432,
   user: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
 });
-///health: Backend'in çalıştığını kontrol ediyor.
 
-// Backendi çalıştığını kontrol eden endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'Backend çalışıyor!' });
+app.use(cors());
+app.use(express.json());
+
+function createToken(user) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+}
+
+app.get("/health", (req, res) => {
+  res.json({ status: "Backend çalışıyor!" });
 });
 
-
-///health/db: Veritabanına gerçekten sorgu göndererek bağlantıyı kontrol ediyor.
-
-// PostgreSQL bağlantısını test eden endpoint
-app.get('/health/db', async (req, res) => {
+app.get("/health/db", async (req, res) => {
   try {
-    const result = await db.query('SELECT 1 AS sonuc');
+    const result = await db.query("SELECT 1 AS sonuc");
+
     res.json({
-      status: 'Bağlantı başarılı!',
+      status: "Bağlantı başarılı!",
       database: result.rows[0].sonuc,
     });
   } catch (error) {
-    console.error('Veritabanı bağlantı hatası:', error.message);
-    res.status(500).json({ error: 'Veritabanına bağlanılamadı.' });
+    console.error("Veritabanı bağlantı hatası:", error.message);
+    res.status(500).json({
+      error: "Veritabanına bağlanılamadı.",
+    });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { fullName, email, password } = req.body || {};
+
+    if (!fullName || !email || !password) {
+      return res.status(400).json({
+        error: "Ad soyad, e-posta ve parola zorunludur.",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: "Parola en az 8 karakter olmalıdır.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const passwordHash = await argon2.hash(password, {
+      type: argon2.argon2id,
+    });
+
+    const result = await db.query(
+      `
+      INSERT INTO users (full_name, email, password_hash)
+      VALUES ($1, $2, $3)
+      RETURNING id, full_name, email, created_at
+      `,
+      [fullName.trim(), normalizedEmail, passwordHash]
+    );
+
+    const user = result.rows[0];
+
+    res.status(201).json({
+      message: "Kayıt başarılı.",
+      token: createToken(user),
+      user,
+    });
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: "Bu e-posta adresi zaten kayıtlı.",
+      });
+    }
+
+    console.error("Kayıt hatası:", error.message);
+    res.status(500).json({
+      error: "Kayıt işlemi başarısız oldu.",
+    });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "E-posta ve parola zorunludur.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const result = await db.query(
+      `
+      SELECT id, full_name, email, password_hash
+      FROM users
+      WHERE email = $1
+      `,
+      [normalizedEmail]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        error: "E-posta veya parola hatalı.",
+      });
+    }
+
+    const user = result.rows[0];
+    const passwordIsValid = await argon2.verify(
+      user.password_hash,
+      password
+    );
+
+    if (!passwordIsValid) {
+      return res.status(401).json({
+        error: "E-posta veya parola hatalı.",
+      });
+    }
+
+    res.json({
+      message: "Giriş başarılı.",
+      token: createToken(user),
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error("Giriş hatası:", error.message);
+    res.status(500).json({
+      error: "Giriş işlemi başarısız oldu.",
+    });
   }
 });
 
