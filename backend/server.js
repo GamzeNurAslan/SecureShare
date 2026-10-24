@@ -1,3 +1,4 @@
+
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -10,23 +11,30 @@ require("dotenv").config({
 });
 
 const app = express();
-const port = 3000;
+const port = Number(process.env.PORT) || 3000;
 
+// JWT anahtarı olmadan sunucuyu başlatma.
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET .env dosyasında bulunamadı.");
 }
 
+// PostgreSQL bağlantısı.
 const db = new Pool({
-  host: "localhost",
-  port: process.env.POSTGRES_PORT || 5432,
+  host: process.env.POSTGRES_HOST || "localhost",
+  port: Number(process.env.POSTGRES_PORT) || 5432,
   user: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
 });
 
+// Ortak middleware'ler.
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
+// Veritabanı bağlantısını diğer modüllerin erişimine aç.
+app.locals.db = db;
+
+// JWT oluşturma.
 function createToken(user) {
   return jwt.sign(
     {
@@ -38,10 +46,12 @@ function createToken(user) {
   );
 }
 
+// Backend sağlık kontrolü.
 app.get("/health", (req, res) => {
   res.json({ status: "Backend çalışıyor!" });
 });
 
+// PostgreSQL sağlık kontrolü.
 app.get("/health/db", async (req, res) => {
   try {
     const result = await db.query("SELECT 1 AS sonuc");
@@ -52,25 +62,28 @@ app.get("/health/db", async (req, res) => {
     });
   } catch (error) {
     console.error("Veritabanı bağlantı hatası:", error.message);
+
     res.status(500).json({
       error: "Veritabanına bağlanılamadı.",
     });
   }
 });
 
+// Kullanıcı kaydı.
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { fullName, email, password } = req.body || {};
 
-    if (!fullName || !email || !password) {
+    if (
+      typeof fullName !== "string" ||
+      !fullName.trim() ||
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         error: "Ad soyad, e-posta ve parola zorunludur.",
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({
-        error: "Parola en az 8 karakter olmalıdır.",
       });
     }
 
@@ -113,17 +126,24 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     console.error("Kayıt hatası:", error.message);
+
     res.status(500).json({
       error: "Kayıt işlemi başarısız oldu.",
     });
   }
 });
 
+// Kullanıcı girişi.
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
 
-    if (!email || !password) {
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         error: "E-posta ve parola zorunludur.",
       });
@@ -147,6 +167,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const user = result.rows[0];
+
     const passwordIsValid = await argon2.verify(
       user.password_hash,
       password
@@ -169,12 +190,66 @@ app.post("/api/auth/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Giriş hatası:", error.message);
+
     res.status(500).json({
       error: "Giriş işlemi başarısız oldu.",
     });
   }
 });
 
-app.listen(port, () => {
+// Henüz uygulanmamış endpoint'ler için 404.
+app.use((req, res) => {
+  res.status(404).json({
+    error: "İstenen endpoint bulunamadı.",
+  });
+});
+
+// Genel hata yakalayıcı.
+app.use((err, req, res, next) => {
+  console.error("Sunucu hatası:", err.message);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(err.status || 500).json({
+    error:
+      err.status && err.status < 500
+        ? err.message
+        : "Sunucuda beklenmeyen bir hata oluştu.",
+  });
+});
+
+// PostgreSQL bağlantı hataları.
+db.on("error", (error) => {
+  console.error("PostgreSQL hatası:", error.message);
+});
+
+// Sunucuyu başlat.
+const server = app.listen(port, () => {
   console.log(`Backend http://localhost:${port} adresinde çalışıyor.`);
 });
+
+// Sunucuyu ve veritabanı bağlantısını kontrollü kapat.
+let shuttingDown = false;
+
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.log("Backend kapatılıyor...");
+
+  server.close(async () => {
+    try {
+      await db.end();
+      console.log("Veritabanı bağlantısı kapatıldı.");
+      process.exit(0);
+    } catch (error) {
+      console.error("Kapatma hatası:", error.message);
+      process.exit(1);
+    }
+  });
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
