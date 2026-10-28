@@ -1,249 +1,215 @@
-
-const express = require('express');
-const multer = require('multer');
-const crypto = require('crypto');
-
-const authMiddleware = require('../middleware/authMiddleware');
+const express = require("express");
+const multer = require("multer");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 const {
-    createMinioClientFromEnv,
-    createStorage,
-} = require('../storage/minioStorage');
-
-const {
-    loadKek,
-    encryptFile,
-    decryptFile,
-} = require('../crypto/encryption');
+  encryptFile,
+  decryptFile,
+  loadKek,
+} = require("../crypto/encryption");
 
 const router = express.Router();
 
 const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 20 * 1024 * 1024,
-        files: 1,
-    },
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
 });
 
-const bucket = process.env.MINIO_BUCKET || 'secureshare';
+function authenticateToken(req, res, next) {
+  const header = req.headers.authorization || "";
+  const [scheme, token] = header.split(" ");
 
-let storage;
+  if (scheme !== "Bearer" || !token) {
+    return res.status(401).json({
+      error: "JWT token gerekli.",
+    });
+  }
 
-function getStorage() {
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({
+      error: "JWT token geçersiz veya süresi dolmuş.",
+    });
+  }
+}
+
+router.post(
+  "/",
+  authenticateToken,
+  upload.single("file"),
+  async (req, res) => {
+    const db = req.app.locals.db;
+    const storage = req.app.locals.storage;
+
     if (!storage) {
-        storage = createStorage(
-            createMinioClientFromEnv(),
-            bucket
-        );
+      return res.status(503).json({
+        error: "MinIO bağlantısı hazır değil.",
+      });
     }
 
-    return storage;
-}
+    if (!req.file) {
+      return res.status(400).json({
+        error: "Yüklenecek dosya bulunamadı.",
+      });
+    }
 
-function isUuid(value) {
-    return typeof value === 'string' &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-router.use(authMiddleware);
-
-// Dosya yükle
-router.post('/', upload.single('file'), async (req, res, next) => {
-    let objectKey;
+    const fileId = crypto.randomUUID();
+    const objectKey = `files/${fileId}`;
+    const aad = Buffer.from(`${fileId}:${req.user.sub}`);
+    const encrypted = encryptFile(
+      req.file.buffer,
+      loadKek(),
+      aad
+    );
 
     try {
-        if (!req.file) {
-            return res.status(400).json({
-                error: 'Yüklenecek dosya gerekli. Form alanının adı file olmalı.',
-            });
-        }
+      await storage.put(objectKey, encrypted.encryptedData);
 
-        const db = req.app.locals.db;
-        const userId = req.user.id;
-        const fileId = crypto.randomUUID();
-        objectKey = `${fileId}.enc`;
-
-        const originalName = req.file.originalname
-            .split(/[\\/]/)
-            .pop()
-            .replace(/[\r\n\0]/g, '_')
-            .slice(0, 255);
-
-        const aad = Buffer.from(`${fileId}:${userId}`, 'utf8');
-        const encrypted = encryptFile(req.file.buffer, loadKek(), aad);
-        const fileStorage = getStorage();
-
-        await fileStorage.ensureBucket();
-        await fileStorage.put(objectKey, encrypted.encryptedData);
-
-        try {
-            await db.query(
-                `INSERT INTO files (
-          id, owner_id, original_name, object_key,
-          mime_type, size_bytes, encrypted_dek,
-          nonce, aad, encryption_algorithm
+      const result = await db.query(
+        `
+        INSERT INTO files (
+          id,
+          owner_id,
+          original_name,
+          object_key,
+          mime_type,
+          size_bytes,
+          encrypted_dek,
+          nonce,
+          aad,
+          encryption_algorithm
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                [
-                    fileId,
-                    userId,
-                    originalName,
-                    objectKey,
-                    req.file.mimetype || 'application/octet-stream',
-                    req.file.size,
-                    encrypted.encryptedDek,
-                    encrypted.nonce,
-                    encrypted.aad,
-                    encrypted.algorithm,
-                ]
-            );
-        } catch (error) {
-            try {
-                await fileStorage.remove(objectKey);
-            } catch (cleanupError) {
-                console.error('MinIO temizleme hatası:', cleanupError.message);
-            }
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        RETURNING id, original_name, mime_type, size_bytes, created_at
+        `,
+        [
+          fileId,
+          req.user.sub,
+          req.file.originalname,
+          objectKey,
+          req.file.mimetype,
+          req.file.size,
+          encrypted.encryptedDek,
+          encrypted.nonce,
+          encrypted.aad,
+          encrypted.algorithm,
+        ]
+      );
 
-            objectKey = undefined;
-            throw error;
-        }
-
-        return res.status(201).json({
-            message: 'Dosya şifrelenerek yüklendi.',
-            file: {
-                id: fileId,
-                original_name: originalName,
-                size_bytes: req.file.size,
-                encryption_algorithm: encrypted.algorithm,
-            },
-        });
+      res.status(201).json({
+        message: "Dosya başarıyla yüklendi.",
+        file: result.rows[0],
+      });
     } catch (error) {
-        return next(error);
-    } finally {
-        if (req.file?.buffer) {
-            req.file.buffer.fill(0);
-        }
+      await storage.remove(objectKey).catch(() => {});
+      console.error("Dosya yükleme hatası:", error.message);
+
+      res.status(500).json({
+        error: "Dosya yüklenemedi.",
+      });
     }
+  }
+);
+
+router.get("/", authenticateToken, async (req, res) => {
+  const db = req.app.locals.db;
+
+  const result = await db.query(
+    `
+    SELECT DISTINCT
+      f.id,
+      f.original_name,
+      f.mime_type,
+      f.size_bytes,
+      f.owner_id,
+      f.created_at
+    FROM files f
+    LEFT JOIN file_permissions p
+      ON p.file_id = f.id
+      AND p.user_id = $1
+      AND (p.expires_at IS NULL OR p.expires_at > NOW())
+    WHERE f.owner_id = $1
+       OR p.can_read = TRUE
+       OR p.can_download = TRUE
+    ORDER BY f.created_at DESC
+    `,
+    [req.user.sub]
+  );
+
+  res.json({
+    files: result.rows,
+  });
 });
 
-// Kullanıcının görebildiği dosyaları listele
-router.get('/', async (req, res, next) => {
-    try {
-        const db = req.app.locals.db;
-        const userId = req.user.id;
+router.get("/:id", authenticateToken, async (req, res) => {
+  const db = req.app.locals.db;
+  const storage = req.app.locals.storage;
 
-        const result = await db.query(
-            `SELECT
-         f.id,
-         f.owner_id,
-         f.original_name,
-         f.mime_type,
-         f.size_bytes,
-         f.encryption_algorithm,
-         f.created_at
-       FROM files f
-       WHERE f.owner_id = $1
-          OR EXISTS (
-            SELECT 1
-            FROM file_permissions p
-            WHERE p.file_id = f.id
-              AND p.user_id = $1
-              AND (p.expires_at IS NULL OR p.expires_at > NOW())
-              AND (p.can_read = TRUE OR p.can_download = TRUE)
-          )
-       ORDER BY f.created_at DESC`,
-            [userId]
-        );
+  if (!storage) {
+    return res.status(503).json({
+      error: "MinIO bağlantısı hazır değil.",
+    });
+  }
 
-        return res.json({ files: result.rows });
-    } catch (error) {
-        return next(error);
-    }
-});
+  const result = await db.query(
+    `
+    SELECT f.*
+    FROM files f
+    LEFT JOIN file_permissions p
+      ON p.file_id = f.id
+      AND p.user_id = $2
+      AND (p.expires_at IS NULL OR p.expires_at > NOW())
+    WHERE f.id = $1
+      AND (f.owner_id = $2 OR p.can_download = TRUE)
+    `,
+    [req.params.id, req.user.sub]
+  );
 
-// Dosya indir
-router.get('/:id/download', async (req, res, next) => {
-    try {
-        const db = req.app.locals.db;
-        const userId = req.user.id;
-        const fileId = req.params.id;
+  if (result.rows.length === 0) {
+    return res.status(404).json({
+      error: "Dosya bulunamadı veya indirme yetkiniz yok.",
+    });
+  }
 
-        if (!isUuid(fileId)) {
-            return res.status(400).json({
-                error: 'Dosya kimliği geçersiz.',
-            });
-        }
+  const file = result.rows[0];
 
-        const result = await db.query(
-            `SELECT
-         f.id,
-         f.owner_id,
-         f.original_name,
-         f.object_key,
-         f.encrypted_dek,
-         f.nonce,
-         f.aad,
-         f.encryption_algorithm
-       FROM files f
-       WHERE f.id = $1
-         AND (
-           f.owner_id = $2
-           OR EXISTS (
-             SELECT 1
-             FROM file_permissions p
-             WHERE p.file_id = f.id
-               AND p.user_id = $2
-               AND p.can_download = TRUE
-               AND (p.expires_at IS NULL OR p.expires_at > NOW())
-           )
-         )
-       LIMIT 1`,
-            [fileId, userId]
-        );
+  try {
+    const encryptedData = await storage.get(file.object_key);
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'Dosya bulunamadı veya indirme izniniz yok.',
-            });
-        }
+    const plainData = decryptFile(
+      {
+        encryptedData,
+        encryptedDek: file.encrypted_dek,
+        nonce: file.nonce,
+        aad: file.aad,
+      },
+      loadKek()
+    );
 
-        const file = result.rows[0];
+    res.setHeader(
+      "Content-Type",
+      file.mime_type || "application/octet-stream"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename*=UTF-8''${encodeURIComponent(
+        file.original_name
+      )}`
+    );
 
-        if (file.encryption_algorithm !== 'AES-128-GCM') {
-            return res.status(500).json({
-                error: 'Desteklenmeyen şifreleme algoritması.',
-            });
-        }
+    res.send(plainData);
+  } catch (error) {
+    console.error("Dosya indirme hatası:", error.message);
 
-        const encryptedData = await getStorage().get(file.object_key);
-
-        const plaintext = decryptFile(
-            {
-                encryptedData,
-                encryptedDek: file.encrypted_dek,
-                nonce: file.nonce,
-                aad: file.aad || Buffer.alloc(0),
-            },
-            loadKek()
-        );
-
-        const safeName = file.original_name
-            .split(/[\\/]/)
-            .pop()
-            .replace(/[\r\n\0"]/g, '_');
-
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader(
-            'Content-Disposition',
-            `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}`
-        );
-        res.setHeader('Cache-Control', 'private, no-store');
-
-        return res.send(plaintext);
-    } catch (error) {
-        return next(error);
-    }
+    res.status(500).json({
+      error: "Dosya indirilemedi.",
+    });
+  }
 });
 
 module.exports = router;
