@@ -2,12 +2,12 @@
 
 ## Büşra’nın Görevleri
 
-- [ ] `files.js` içine dosya yükleme endpoint’i eklendi.
-- [ ] Dosya listeleme endpoint’i eklendi.
-- [ ] Dosya indirme endpoint’i eklendi.
-- [ ] JWT doğrulama middleware’i eklendi.
-- [ ] `/api/files` route’u `server.js` içinde bağlandı.
-- [ ] Yetkisiz istekler reddediliyor.
+- [x] `files.js` içine dosya yükleme endpoint’i eklendi.
+- [x] Dosya listeleme endpoint’i eklendi.
+- [x] Dosya indirme endpoint’i eklendi.
+- [x] JWT doğrulama middleware’i eklendi.
+- [x] `/api/files` route’u `server.js` içinde bağlandı.
+- [x] Yetkisiz istekler reddediliyor.
 
 ## Hava’nın Önceden Tamamladığı Çalışmalar
 
@@ -30,28 +30,29 @@
 - [x] Genel entegrasyon test planı hazırlandı.
 - [x] Hava’nın MinIO demosu çalıştırılarak doğrulandı.
 - [x] Orijinal ve çözülen dosyanın SHA-256 değerleri karşılaştırıldı.
-- [ ] Büşra’nın PR’ı incelenecek.
+- [x] Büşra’nın PR’ı incelenecek.
 - [ ] Hava’nın API entegrasyon PR’ı incelenecek.
-- [ ] JWT ile dosya yükleme testi yapılacak.
-- [ ] Dosya indirme ve çözme testi yapılacak.
-- [ ] Test ekran görüntüleri toplanacak.
-- [ ] 4. hafta rapor notları hazırlanacak.
+- [x] JWT ile dosya yükleme testi yapılacak.
+- [x] Dosya indirme ve çözme testi yapılacak.
+- [x] Test ekran görüntüleri toplanacak.
+- [x] 4. hafta rapor notları hazırlanacak.
 
 ## Genel Entegrasyon Kontrolü
 
-- [ ] Kullanıcı kayıt oldu.
-- [ ] Kullanıcı giriş yaptı ve JWT aldı.
-- [ ] JWT ile dosya yüklenebildi.
-- [ ] Dosya PostgreSQL metadata kaydı oluşturuldu.
-- [ ] Dosya MinIO’ya şifreli olarak yazıldı.
-- [ ] Dosya geri indirilip doğru şekilde çözüldü.
+- [x] Kullanıcı kayıt oldu.
+- [x] Kullanıcı giriş yaptı ve JWT aldı.
+- [x] JWT ile dosya yüklenebildi.
+- [x] Dosya PostgreSQL metadata kaydı oluşturuldu.
+- [x] Dosya MinIO’ya şifreli olarak yazıldı.
+- [x] Dosya geri indirilip doğru şekilde çözüldü.
 - [x] MinIO demo dosyasının SHA-256 değeri orijinal dosyayla aynı çıktı.
-- [ ] JWT olmadan erişim reddedildi.
-- [ ] Başka kullanıcıya ait dosyaya izinsiz erişim reddedildi.
-- [ ] Test ekran görüntüleri rapora eklendi.
+- [x] JWT olmadan erişim reddedildi.
+- [x] Başka kullanıcıya ait dosyaya izinsiz erişim reddedildi.
+- [x] Test ekran görüntüleri rapora eklendi.
 
 ## 4. Hafta Sonuç
 
-- [ ] Gerçek dosya API’si üzerinden şifreli yükleme ve indirme tamamlandı.
+- [x] Gerçek dosya API’si üzerinden şifreli yükleme ve indirme tamamlandı.
 - [x] MinIO şifreleme demosu doğrulandı.
-- [ ] Tespit edilen eksikler 5. hafta planına aktarıldı.
+- [x] Tespit edilen eksikler 5. hafta planına aktarıldı.
+- [x] Bu hafta toplam test kısımlarında 19+ başarılı test yapıldı.

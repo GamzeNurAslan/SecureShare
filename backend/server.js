@@ -1,10 +1,15 @@
-
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const argon2 = require("argon2");
 const jwt = require("jsonwebtoken");
+
+const filesRouter = require("./routes/files");
+const {
+  createMinioClientFromEnv,
+  createStorage,
+} = require("./storage/minioStorage");
 
 require("dotenv").config({
   path: path.resolve(__dirname, "..", ".env"),
@@ -13,12 +18,10 @@ require("dotenv").config({
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 
-// JWT anahtarı olmadan sunucuyu başlatma.
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET .env dosyasında bulunamadı.");
 }
 
-// PostgreSQL bağlantısı.
 const db = new Pool({
   host: process.env.POSTGRES_HOST || "localhost",
   port: Number(process.env.POSTGRES_PORT) || 5432,
@@ -27,14 +30,32 @@ const db = new Pool({
   database: process.env.POSTGRES_DB,
 });
 
-// Ortak middleware'ler.
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-// Veritabanı bağlantısını diğer modüllerin erişimine aç.
 app.locals.db = db;
 
-// JWT oluşturma.
+// MinIO bağlantısı
+try {
+  const minioClient = createMinioClientFromEnv();
+
+  const storage = createStorage(
+    minioClient,
+    process.env.MINIO_BUCKET || "secureshare-files"
+  );
+
+  app.locals.storage = storage;
+
+  storage
+    .ensureBucket()
+    .then(() => console.log("MinIO bucket hazır."))
+    .catch((error) => {
+      console.error("MinIO bucket hatası:", error.message);
+    });
+} catch (error) {
+  console.warn("MinIO başlatılamadı:", error.message);
+}
+
 function createToken(user) {
   return jwt.sign(
     {
@@ -42,16 +63,20 @@ function createToken(user) {
       email: user.email,
     },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" }
+    {
+      expiresIn: "1h",
+    }
   );
 }
 
-// Backend sağlık kontrolü.
+// Backend sağlık kontrolü
 app.get("/health", (req, res) => {
-  res.json({ status: "Backend çalışıyor!" });
+  res.json({
+    status: "Backend çalışıyor!",
+  });
 });
 
-// PostgreSQL sağlık kontrolü.
+// PostgreSQL sağlık kontrolü
 app.get("/health/db", async (req, res) => {
   try {
     const result = await db.query("SELECT 1 AS sonuc");
@@ -69,7 +94,7 @@ app.get("/health/db", async (req, res) => {
   }
 });
 
-// Kullanıcı kaydı.
+// Kullanıcı kaydı
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { fullName, email, password } = req.body || {};
@@ -98,6 +123,7 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+
     const passwordHash = await argon2.hash(password, {
       type: argon2.argon2id,
     });
@@ -133,7 +159,7 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-// Kullanıcı girişi.
+// Kullanıcı girişi
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -197,14 +223,17 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Henüz uygulanmamış endpoint'ler için 404.
+// Dosya API route'u
+app.use("/api/files", filesRouter);
+
+// Bulunamayan endpoint'ler
 app.use((req, res) => {
   res.status(404).json({
     error: "İstenen endpoint bulunamadı.",
   });
 });
 
-// Genel hata yakalayıcı.
+// Genel hata yakalayıcı
 app.use((err, req, res, next) => {
   console.error("Sunucu hatası:", err.message);
 
@@ -220,23 +249,20 @@ app.use((err, req, res, next) => {
   });
 });
 
-// PostgreSQL bağlantı hataları.
 db.on("error", (error) => {
   console.error("PostgreSQL hatası:", error.message);
 });
 
-// Sunucuyu başlat.
 const server = app.listen(port, () => {
   console.log(`Backend http://localhost:${port} adresinde çalışıyor.`);
 });
 
-// Sunucuyu ve veritabanı bağlantısını kontrollü kapat.
 let shuttingDown = false;
 
 async function shutdown() {
   if (shuttingDown) return;
-  shuttingDown = true;
 
+  shuttingDown = true;
   console.log("Backend kapatılıyor...");
 
   server.close(async () => {
