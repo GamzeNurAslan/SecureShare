@@ -17,14 +17,14 @@ Dosya sahiplerinin kayıtlı kullanıcılarla dosya paylaşabilmesini, verilen i
 
 ## Büşra’nın Görevleri
 
-- [ ] `backend/routes/files.js` içinde ortak JWT middleware’i kullanılacak.
-- [ ] `POST /api/files/:id/permissions` paylaşım endpoint’i eklenecek.
-- [ ] Paylaşım yapılacak kullanıcının e-posta adresiyle sistemde kayıtlı olup olmadığı kontrol edilecek.
-- [ ] `can_read`, `can_download` ve `expires_at` bilgileri `file_permissions` tablosuna yazılacak.
-- [ ] Aynı kullanıcıya tekrar izin verildiğinde mevcut izin kaydı güncellenecek.
-- [ ] `GET /api/files/:id/permissions` endpoint’i ile dosya sahibinin verdiği izinler listelenecek.
-- [ ] `DELETE /api/files/:id/permissions/:userId` endpoint’i ile izin kaldırılacak.
-- [ ] Geçmiş veya geçersiz tarih içeren izin istekleri reddedilecek.
+- [x] `backend/routes/files.js` içinde ortak JWT middleware’i kullanılacak.
+- [x] `POST /api/files/:id/permissions` paylaşım endpoint’i eklenecek.
+- [x] Paylaşım yapılacak kullanıcının e-posta adresiyle sistemde kayıtlı olup olmadığı kontrol edilecek.
+- [x] `can_read`, `can_download` ve `expires_at` bilgileri `file_permissions` tablosuna yazılacak.
+- [x] Aynı kullanıcıya tekrar izin verildiğinde mevcut izin kaydı güncellenecek.
+- [x] `GET /api/files/:id/permissions` endpoint’i ile dosya sahibinin verdiği izinler listelenecek.
+- [x] `DELETE /api/files/:id/permissions/:userId` endpoint’i ile izin kaldırılacak.
+- [x] Geçmiş veya geçersiz tarih içeren izin istekleri reddedilecek.
 
 ## Hava’nın Görevleri
 
@@ -38,25 +38,26 @@ Dosya sahiplerinin kayıtlı kullanıcılarla dosya paylaşabilmesini, verilen i
 
 ## Gamze’nin Görevleri
 
-- [ ] Dosya sahibi ile ikinci test kullanıcısı oluşturulacak.
-- [ ] Dosya sahibinin ikinci kullanıcıya `READ` izni vermesi test edilecek.
-- [ ] `READ` izni olan kullanıcının dosyayı listede görebildiği doğrulanacak.
-- [ ] `DOWNLOAD` izni olmayan kullanıcının dosyayı indirmesinin reddedildiği test edilecek.
-- [ ] `DOWNLOAD` izni verildiğinde dosyanın başarıyla indirildiği test edilecek.
-- [ ] İzin kaldırıldıktan sonra kullanıcının dosyaya tekrar erişemediği doğrulanacak.
-- [ ] Süresi geçmiş izinle erişimin reddedildiği test edilecek.
-- [ ] PostgreSQL üzerindeki `file_permissions` ve `audit_logs` kayıtları kontrol edilecek.
+- [x] Dosya sahibi ile ikinci test kullanıcısı oluşturulacak.
+- [x] Dosya sahibinin ikinci kullanıcıya `READ` izni vermesi test edilecek.
+- [x] `READ` izni olan kullanıcının dosyayı listede görebildiği doğrulanacak.
+- [x] `DOWNLOAD` izni olmayan kullanıcının dosyayı indirmesinin reddedildiği test edilecek.
+- [x] `DOWNLOAD` izni verildiğinde dosyanın başarıyla indirildiği test edilecek.
+- [x] İzin kaldırıldıktan sonra kullanıcının dosyaya tekrar erişemediği doğrulanacak.
+- [x] Süresi geçmiş izinle erişimin reddedildiği test edilecek.
+- [x] PostgreSQL üzerindeki `file_permissions` kayıtları kontrol edildi.
+- [ ] `audit_logs` kayıtları kontrol edilecek.
 - [ ] Test ekran görüntüleri ve 5. hafta rapor notları hazırlanacak.
 
 ## Genel Kabul Kriterleri
 
-- [ ] Dosya sahibi, kayıtlı bir kullanıcıya dosya izni verebiliyor.
-- [ ] Paylaşılan kullanıcı yalnızca kendisine verilen izin kapsamındaki işlemleri yapabiliyor.
-- [ ] İzin süresi dolduğunda erişim otomatik engelleniyor.
-- [ ] İzin kaldırıldığında kullanıcı dosyaya tekrar erişemiyor.
+- [x] Dosya sahibi, kayıtlı bir kullanıcıya dosya izni verebiliyor.
+- [x] Paylaşılan kullanıcı yalnızca kendisine verilen izin kapsamındaki işlemleri yapabiliyor.
+- [x] İzin süresi dolduğunda erişim otomatik engelleniyor.
+- [x] İzin kaldırıldığında kullanıcı dosyaya tekrar erişemiyor.
 - [ ] Paylaşma, indirme, izin kaldırma ve reddedilen erişim işlemleri audit log’a yazılıyor.
 - [ ] Audit log kayıtlarında parola, JWT veya şifreleme anahtarı bulunmuyor.
-- [ ] Paylaşım ve yetkilendirme testleri başarıyla tamamlanıyor.
+- [x] Paylaşım ve yetkilendirme testleri başarıyla tamamlanıyor.
 
 ## Kapsam Dışı
 
