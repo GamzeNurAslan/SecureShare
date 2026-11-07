@@ -1,0 +1,7 @@
+[
+  {
+    "file": "mobile/App.tsx",
+    "call": "fetch(asset.uri)",
+    "reason": "Web'de dosya seçiciden gelen yerel blob:/data: adresinden Blob okur; ağ çağrısı değildir. Dosya sonra FormData ile /api/files'a gönderilir (doğrulayan: Hava Şener, 2026-11-07)."
+  }
+]

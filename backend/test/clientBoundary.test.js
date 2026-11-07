@@ -177,6 +177,27 @@ test('istemci kodunda geçen adresler listelenir', () => {
   assert.deepStrictEqual(hosts, ['10.0.2.2:3000']);
 });
 
+test('elle doğrulanmış çağrı allow listesiyle ayrılır, eşleşmeyen çözümlenemeyen kalır', () => {
+  const root = makeRepo({
+    'mobile/src/a.ts': "fetch(asset.uri);\n\n\nfetch(other.uri);",
+    'backend/server.js': "app.use('/api/files', r);",
+  });
+  const allow = [{ file: 'mobile/src/a.ts', call: 'fetch(asset.uri)', reason: 'yerel blob' }];
+  const res = scanClients({ root, allow });
+  assert.strictEqual(res.verified.length, 1);
+  assert.strictEqual(res.verified[0].reason, 'yerel blob');
+  assert.deepStrictEqual(res.unresolved.map((u) => u.call), ['fetch(other.uri)']);
+  // allow olmadan ikisi de çözümlenemeyen
+  assert.strictEqual(scanClients({ root }).unresolved.length, 2);
+});
+
+test('allow kaydı satır numarasına bağlı değil (kod kayınca bozulmaz)', () => {
+  const root = makeRepo({ 'mobile/src/a.ts': "\n\n\n\n\nfetch(asset.uri);" });
+  const res = scanClients({ root, allow: [{ file: 'mobile/src/a.ts', call: 'fetch(asset.uri)', reason: 'x' }] });
+  assert.strictEqual(res.verified.length, 1);
+  assert.strictEqual(res.unresolved.length, 0);
+});
+
 // ---------- Gerçek depo ----------
 
 test('GERÇEK DEPO: mobile/ ve web/ yalnızca REST API üzerinden çalışıyor (hata yok)', (t) => {

@@ -197,8 +197,10 @@ function scanCompose(root, add) {
 /**
  * @param {object} opts
  * @param {string} opts.root  Depo kökü (içinde mobile/, web/, backend/, docker-compose.yml)
+ * @param {Array<{file:string, call:string, reason:string}>} [opts.allow]
+ *        Elle doğrulanmış, otomatik çözümlenemeyen çağrılar (satır numarası eşleşmesi aranmaz)
  */
-function scanClients({ root }) {
+function scanClients({ root, allow = [] }) {
   const findings = [];
   const endpoints = [];
   const stats = { filesScanned: 0, networkCalls: 0, unresolvedCalls: 0, unresolved: [], hosts: new Map(), files: [] };
@@ -225,6 +227,13 @@ function scanClients({ root }) {
     if (!segs.has(seg)) add('warn', 'UNKNOWN_ENDPOINT', e.file, e.line, `${e.endpoint} için backend'de karşılık bulunamadı`);
   }
 
+  const verified = [];
+  const remaining = [];
+  for (const u of stats.unresolved) {
+    const hit = allow.find((a) => a.file === u.file && a.call === u.call);
+    if (hit) verified.push({ ...u, reason: hit.reason }); else remaining.push(u);
+  }
+
   return {
     findings,
     errors: findings.filter((f) => f.severity === 'error'),
@@ -232,7 +241,8 @@ function scanClients({ root }) {
     endpoints: [...uniq.values()].map((e) => e.endpoint).sort(),
     clientDirs: present,
     stats,
-    unresolved: stats.unresolved,
+    unresolved: remaining,
+    verified,
     hosts: [...stats.hosts].map(([host, v]) => ({ host, ...v })),
     scannedFiles: stats.files,
   };
@@ -262,6 +272,9 @@ function renderMarkdown(result) {
     '## Çözümlenemeyen çağrılar (elle kontrol edilmeli)',
     result.unresolved.length ? result.unresolved.map((u) => `- \`${u.file}:${u.line}\` → \`${u.call}\``).join('\n') : '- yok',
     '',
+    '## Elle doğrulanan çağrılar',
+    result.verified.length ? result.verified.map((v) => `- \`${v.file}:${v.line}\` → \`${v.call}\` — ${v.reason}`).join('\n') : '- yok',
+    '',
     '## İstemcinin kodunda geçen adresler',
     result.hosts.length ? result.hosts.map((h) => `- \`${h.host}\` (\`${h.file}:${h.line}\`)`).join('\n') : '- yok',
     '',
@@ -278,16 +291,20 @@ module.exports = { scanClients, renderMarkdown, normalizeEndpoint, isForbiddenPa
 
 if (require.main === module) {
   const root = path.resolve(__dirname, '..', '..');
-  const result = scanClients({ root });
+  const allowFile = path.join(__dirname, 'client-boundary-allow.json');
+  const allow = fs.existsSync(allowFile) ? JSON.parse(fs.readFileSync(allowFile, 'utf8')) : [];
+  const result = scanClients({ root, allow });
   const out = (f) => console.log(`  [${f.severity.toUpperCase()}] ${f.rule}  ${f.file}${f.line ? ':' + f.line : ''}  ${f.message}`);
 
   console.log(`İstemci klasörleri: ${result.clientDirs.join(', ') || '(yok)'}  ·  taranan dosya: ${result.stats.filesScanned}`);
-  console.log(`Ağ çağrıları: ${result.stats.networkCalls} (çözümlenemeyen: ${result.stats.unresolvedCalls})`);
+  console.log(`Ağ çağrıları: ${result.stats.networkCalls} (çözümlenemeyen: ${result.stats.unresolvedCalls}, elle doğrulanan: ${result.verified.length})`);
   console.log('Çağrılan uç noktalar:');
   (result.endpoints.length ? result.endpoints : ['(yok)']).forEach((e) => console.log('  ' + e));
   console.log('Taranan dosyalar: ' + (result.scannedFiles.join(', ') || '(yok)'));
   console.log('İstemci kodunda geçen adresler:');
   (result.hosts.length ? result.hosts.map((h) => `  ${h.host}  (${h.file}:${h.line})`) : ['  (yok)']).forEach((l) => console.log(l));
+  console.log('Elle doğrulanan çağrılar:');
+  (result.verified.length ? result.verified.map((v) => `  ${v.file}:${v.line}  ${v.call}  — ${v.reason}`) : ['  (yok)']).forEach((l) => console.log(l));
   console.log('Çözümlenemeyen çağrılar (elle kontrol edin):');
   (result.unresolved.length ? result.unresolved.map((u) => `  ${u.file}:${u.line}  ${u.call}`) : ['  (yok)']).forEach((l) => console.log(l));
   console.log(`\nBulgular: ${result.errors.length} hata, ${result.warnings.length} uyarı`);
