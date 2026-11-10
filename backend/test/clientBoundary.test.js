@@ -198,6 +198,85 @@ test('allow kaydı satır numarasına bağlı değil (kod kayınca bozulmaz)', (
   assert.strictEqual(res.unresolved.length, 0);
 });
 
+// ---------- Anahtar malzemesi, API sızıntısı, depo hijyeni ----------
+
+test('istemci kodunda anahtar malzemesi ve depolama iç ayrıntısı hata verir; yorum satırı vermez', () => {
+  const root = makeRepo({
+    'mobile/src/a.ts': [
+      '// KEK sunucuda tutulur, istemci bilmez',
+      '/* DEK burada kullanılmaz */',
+      'const k = row.encryptedDek;',
+      'const x = response.object_key;',
+      'const dek = await getKey();',
+      "const url = presignedUrl;",
+      "await client.getObject('secureshare-files', key);",
+    ].join('\n'),
+  });
+  const res = scanClients({ root });
+  const byRule = (r) => res.errors.filter((e) => e.rule === r).map((e) => e.line);
+  assert.deepStrictEqual(byRule('CLIENT_KEY_MATERIAL'), [3, 4]); // 1-2. satır yorum, 5. satırdaki küçük harf `dek` değişken adı
+  assert.deepStrictEqual(byRule('CLIENT_STORAGE_INTERNAL'), [6, 7]);
+});
+
+test('istemcide şifreleme kütüphanesi ve crypto.subtle uyarı verir (hata değil)', () => {
+  const root = makeRepo({
+    'mobile/package.json': JSON.stringify({ dependencies: { 'crypto-js': '4', expo: '1' } }),
+    'mobile/src/a.ts': "import CryptoJS from 'crypto-js';\nconst d = await crypto.subtle.digest('SHA-256', b);",
+  });
+  const res = scanClients({ root });
+  assert.deepStrictEqual(res.errors, []);
+  const warns = res.warnings.map((w) => w.rule);
+  assert.strictEqual(warns.filter((r) => r === 'CLIENT_CRYPTO_LIB').length, 2); // paket + import
+  assert.ok(warns.includes('CLIENT_CRYPTO_API'));
+});
+
+test('API yanıtı anahtar/iç alan döndürürse hata verir (iç içe parantez dahil)', () => {
+  const root = makeRepo({
+    'backend/routes/files.js': [
+      "router.get('/:id', async (req, res) => {",
+      "  res.status(200).json({ id: row.id, originalName: row.original_name });",        // temiz
+      "  res.json({ id: row.id, encrypted_dek: row.encrypted_dek });",                   // sızıntı (3+... 3. satır)
+      "  res.status(200).json(rows.map((r) => ({ id: r.id, nonce: r.nonce })));",         // sızıntı (iç içe)
+      "  res.send({ user: { id: u.id, password_hash: u.password_hash } });",              // sızıntı
+      "  res.status(403).json({ error: 'Yetkiniz yok.' });",                              // temiz
+      "});",
+    ].join('\n'),
+  });
+  const leaks = scanClients({ root }).errors.filter((e) => e.rule === 'API_RESPONSE_LEAK');
+  assert.deepStrictEqual(leaks.map((l) => l.line), [3, 4, 5]);
+  assert.match(leaks[0].message, /encrypted_dek/);
+});
+
+test('SELECT * ve RETURNING * route dosyasında uyarı verir (hata değil)', () => {
+  const root = makeRepo({
+    'backend/routes/files.js': "const r = await db.query('SELECT * FROM files WHERE id = $1', [id]);\nres.json(r.rows[0]);\nawait db.query('INSERT INTO files (id) VALUES ($1) RETURNING *', [1]);",
+  });
+  const res = scanClients({ root });
+  assert.deepStrictEqual(res.errors, []);
+  assert.deepStrictEqual(res.warnings.filter((w) => w.rule === 'SELECT_STAR').map((w) => w.line), [1, 3]);
+});
+
+test('anahtarı meşru işleyen iç modüller (services, crypto, storage, audit, test, scripts) API sızıntısı için taranmaz', () => {
+  const root = makeRepo({
+    'backend/services/fileService.js': "res.json({ encrypted_dek: 1 });",
+    'backend/crypto/encryption.js': "res.json({ kek: 1 });",
+    'backend/test/a.test.js': "res.json({ nonce: 1 });",
+    'backend/routes/ok.js': "res.json({ id: 1 });",
+  });
+  assert.strictEqual(scanClients({ root }).errors.filter((e) => e.rule === 'API_RESPONSE_LEAK').length, 0);
+});
+
+test('depo hijyeni: .env .gitignore\'da değilse ve .env.example\'da gizli değer doluysa hata', () => {
+  const bad = makeRepo({ '.gitignore': 'node_modules\n*.log\n', '.env.example': 'KEK_HEX=a6c01c305aff2519f7e2daaf160ef8d2\nPOSTGRES_DB=x\nMINIO_ROOT_PASSWORD=\n' });
+  const r = scanClients({ root: bad }).errors.map((e) => e.rule).sort();
+  assert.deepStrictEqual(r, ['ENV_NOT_IGNORED', 'SECRET_IN_EXAMPLE']);
+
+  for (const gi of ['.env\n', '.env*\n!.env.example\n', '.env.*\n', '/.env\n', '*.env\n']) {
+    const ok = makeRepo({ '.gitignore': gi, '.env.example': 'KEK_HEX=\nAUDIT_HMAC_KEY=\nMINIO_ROOT_PASSWORD=\nJWT_SECRET=\n' });
+    assert.deepStrictEqual(scanClients({ root: ok }).errors, [], `gitignore: ${JSON.stringify(gi)}`);
+  }
+});
+
 // ---------- Gerçek depo ----------
 
 test('GERÇEK DEPO: mobile/ ve web/ yalnızca REST API üzerinden çalışıyor (hata yok)', (t) => {
