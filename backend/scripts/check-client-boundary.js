@@ -12,6 +12,11 @@
 //  5. Ağ çağrıları: /api/... uçlarına gidiyor, dış servis çağrısı uyarı veriyor,
 //     çağrılan uçların backend'de karşılığı var mı (en iyi çaba)
 //  6. docker-compose: veritabanı ve MinIO yalnızca 127.0.0.1'e açık
+//  7. İstemcide anahtar malzemesi (KEK/DEK, şifreli anahtar, nesne yolu), depolama iç ayrıntısı ve
+//     istemci tarafı şifreleme kütüphanesi yok
+//  8. Backend API yanıtlarında anahtar malzemesi / nonce / AAD / nesne yolu / parola özeti dönmüyor
+//     (SELECT * kullanımı uyarı verir: tüm satır doğrudan dönerse alanlar sızabilir)
+//  9. .env .gitignore'da, .env.example içinde gizli değerler boş
 
 const fs = require('fs');
 const path = require('path');
@@ -45,6 +50,22 @@ const SECRET_RE = new RegExp(`\\b(${SECRET_NAMES.join('|')})\\b`);
 const CONN_RE = /\b(postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp|s3):\/\//i;
 const PORT_RE = /[\w.-]+:(5432|9000|9001)\b/;
 const PUBLIC_ENV_SECRET_RE = /\b(EXPO_PUBLIC|VITE|REACT_APP|NEXT_PUBLIC)_\w*(SECRET|PASSWORD|PRIVATE|KEK)\w*/i;
+
+// İstemcide anahtar malzemesi ve depolama iç ayrıntıları bulunmamalı
+const KEY_MATERIAL_RE = /\b(encrypted_dek|encryptedDek|kek_hex|KEK|DEK|object_key|objectKey)\b/;
+const STORAGE_INTERNAL_RE = /(X-Amz-|\bpresigned\w*|\bgetObject\b|\bputObject\b|secureshare-files)/i;
+const CLIENT_CRYPTO_PACKAGES = [
+  'crypto-js', 'node-forge', 'tweetnacl', 'tweetnacl-util', 'libsodium-wrappers', 'react-native-aes-crypto',
+  'react-native-simple-crypto', 'react-native-quick-crypto', 'aes-js', 'sjcl', 'crypto-browserify', '@noble/ciphers',
+];
+const SUBTLE_RE = /\b(crypto\.subtle|SubtleCrypto)\b/;
+const isCommentLine = (line) => /^\s*(\/\/|\*|\/\*)/.test(line);
+
+// Backend yanıtlarında dönmemesi gereken alanlar
+const API_LEAK_RE = /\b(encrypted_dek|encryptedDek|nonce|aad|object_key|objectKey|password_hash|passwordHash|kek|dek|JWT_SECRET)\b/i;
+const RESPONSE_CALL_RE = /\bres(?:\s*\.\s*status\s*\([^)]*\))?\s*\.\s*(?:json|send)\s*\(/g;
+// Anahtarları meşru biçimde işleyen iç modüller taranmaz (yalnızca yanıt üreten katman taranır)
+const BACKEND_SKIP_DIRS = new Set(['test', 'scripts', 'crypto', 'storage', 'services', 'audit']);
 
 const CALL_RE = /\b(fetch|axios(?:\.(?:get|post|put|patch|delete|request))?|ky|got)\s*\(\s*(`[^`]*`|'[^']*'|"[^"]*"|[A-Za-z_$][\w.$]*)/g;
 const INSTANCE_CALL_RE = /\b[A-Za-z_$][\w$]*\.(get|post|put|patch|delete)\(\s*(`[^`]*`|'[^']*'|"[^"]*")/g;
@@ -87,6 +108,7 @@ function scanClientFile(root, file, add, endpoints, stats) {
     for (const section of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
       for (const dep of Object.keys(pkg[section] || {})) {
         if (isForbiddenPackage(dep)) add('error', 'FORBIDDEN_DEPENDENCY', name, 1, `${section}: ${dep} istemcide olmamalı`);
+        if (CLIENT_CRYPTO_PACKAGES.includes(dep)) add('warn', 'CLIENT_CRYPTO_LIB', name, 1, `${section}: ${dep} istemcide şifreleme kütüphanesi; anahtarlar istemcide mi tutuluyor?`);
       }
     }
     return;
@@ -104,6 +126,11 @@ function scanClientFile(root, file, add, endpoints, stats) {
     if (PORT_RE.test(line)) add('error', 'DIRECT_SERVICE_PORT', name, ln, 'veritabanı/MinIO portuna doğrudan adres (5432/9000/9001)');
     if (SECRET_RE.test(line)) add('error', 'SERVER_SECRET', name, ln, `sunucu sırrı istemcide geçiyor: ${line.match(SECRET_RE)[1]}`);
     if (PUBLIC_ENV_SECRET_RE.test(line)) add('error', 'PUBLIC_ENV_SECRET', name, ln, 'herkese açık ortam değişkeninde gizli değer adı');
+    if (!isCommentLine(line)) {
+      if (KEY_MATERIAL_RE.test(line)) add('error', 'CLIENT_KEY_MATERIAL', name, ln, `anahtar malzemesi istemcide geçiyor: ${line.match(KEY_MATERIAL_RE)[1]}`);
+      if (STORAGE_INTERNAL_RE.test(line)) add('error', 'CLIENT_STORAGE_INTERNAL', name, ln, 'MinIO/depolama iç ayrıntısı istemcide geçiyor');
+      if (SUBTLE_RE.test(line)) add('warn', 'CLIENT_CRYPTO_API', name, ln, "istemci tarafı şifreleme API'si (crypto.subtle); anahtar yönetimi sunucuda olmalı");
+    }
   });
 
   if (!isSource) return;
@@ -114,6 +141,9 @@ function scanClientFile(root, file, add, endpoints, stats) {
     const pkgName = m[1].startsWith('@') ? m[1].split('/').slice(0, 2).join('/') : m[1].split('/')[0];
     if (!m[1].startsWith('.') && isForbiddenPackage(pkgName)) {
       add('error', 'FORBIDDEN_IMPORT', name, lineOf(text, m.index), `${pkgName} istemci kodunda kullanılamaz`);
+    }
+    if (!m[1].startsWith('.') && CLIENT_CRYPTO_PACKAGES.includes(pkgName)) {
+      add('warn', 'CLIENT_CRYPTO_LIB', name, lineOf(text, m.index), `${pkgName} istemcide şifreleme kütüphanesi; anahtarlar istemcide mi tutuluyor?`);
     }
   }
 
@@ -194,6 +224,64 @@ function scanCompose(root, add) {
   });
 }
 
+/** '(' sonrasındaki ilk karakterden eşleşen ')' karakterine kadar olan metni döner (tırnakları atlar). */
+function extractCall(text, openIdx) {
+  let depth = 1;
+  let i = openIdx;
+  let quote = null;
+  for (; i < text.length && depth > 0; i++) {
+    const ch = text[i];
+    if (quote) { if (ch === '\\') i++; else if (ch === quote) quote = null; continue; }
+    if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    else if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+  }
+  return text.slice(openIdx, i);
+}
+
+/** Backend yanıtları (res.json / res.send) anahtar malzemesi, nonce/AAD, nesne yolu ya da parola özeti döndürüyor mu? */
+function scanApiLeaks(root, add) {
+  const dir = path.join(root, 'backend');
+  if (!fs.existsSync(dir)) return;
+  const files = walk(dir).filter((f) => {
+    const segments = rel(dir, f).split('/');
+    return SOURCE_EXT.has(path.extname(f)) && !segments.slice(0, -1).some((seg) => BACKEND_SKIP_DIRS.has(seg));
+  });
+  for (const f of files) {
+    const text = fs.readFileSync(f, 'utf8');
+    // Alan adı yazmadan tüm satırı döndüren kod, isim taramasında görünmez; SELECT * bunun işaretidir
+    for (const sm of text.matchAll(/\b(SELECT|RETURNING)\s+\*/gi)) {
+      add('warn', 'SELECT_STAR', rel(root, f), lineOf(text, sm.index), `${sm[1].toUpperCase()} * kullanılıyor; sonuç doğrudan istemciye dönerse encrypted_dek/nonce/aad/object_key sızabilir`);
+    }
+    RESPONSE_CALL_RE.lastIndex = 0;
+    for (let m; (m = RESPONSE_CALL_RE.exec(text));) {
+      const body = extractCall(text, m.index + m[0].length);
+      const hit = body.match(API_LEAK_RE);
+      if (hit) {
+        add('error', 'API_RESPONSE_LEAK', rel(root, f), lineOf(text, m.index), `API yanıtı "${hit[1]}" alanını içeriyor; istemciye anahtar/iç ayrıntı sızabilir`);
+      }
+    }
+  }
+}
+
+/** .env .gitignore'da mı, .env.example içinde gizli değerler boş mu? */
+function scanRepoHygiene(root, add) {
+  const gi = path.join(root, '.gitignore');
+  if (fs.existsSync(gi)) {
+    const lines = fs.readFileSync(gi, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith('!'));
+    if (!lines.some((l) => /^\/?\.env(\*|\.\*)?$/.test(l) || l === '*.env')) {
+      add('error', 'ENV_NOT_IGNORED', '.gitignore', 0, '.env dosyası .gitignore içinde yok; anahtarlar depoya girebilir');
+    }
+  }
+  const ex = path.join(root, '.env.example');
+  if (fs.existsSync(ex)) {
+    fs.readFileSync(ex, 'utf8').split(/\r?\n/).forEach((line, i) => {
+      const m = line.match(/^\s*(KEK_HEX|MINIO_ROOT_PASSWORD|AUDIT_HMAC_KEY|JWT_SECRET)\s*=\s*(\S.*)$/);
+      if (m) add('error', 'SECRET_IN_EXAMPLE', '.env.example', i + 1, `${m[1]} değeri .env.example içinde dolu olmamalı (depoya girer)`);
+    });
+  }
+}
+
 /**
  * @param {object} opts
  * @param {string} opts.root  Depo kökü (içinde mobile/, web/, backend/, docker-compose.yml)
@@ -212,6 +300,8 @@ function scanClients({ root, allow = [] }) {
   }
 
   scanCompose(root, add);
+  scanApiLeaks(root, add);
+  scanRepoHygiene(root, add);
 
   // Hiç ağ çağrısı bulunmadıysa 'geçti' demek yanıltıcı olur: istemci API'ye henüz bağlanmamış olabilir
   if (present.length && stats.filesScanned > 0 && stats.networkCalls === 0 && stats.unresolvedCalls === 0) {
@@ -265,6 +355,9 @@ function renderMarkdown(result) {
     '4. Sunucu sırları (KEK, MinIO/Postgres parolası, JWT secret) istemcide geçmiyor.',
     '5. Ağ çağrıları `/api/...` uçlarına gidiyor; dış adres ve `/api/` dışı yol uyarı verir.',
     '6. `docker-compose.yml` içinde veritabanı ve MinIO yalnızca `127.0.0.1` üzerinden erişilebilir.',
+    '7. İstemci kodunda anahtar malzemesi (KEK/DEK, şifreli anahtar, nesne yolu) ve depolama iç ayrıntısı (presigned URL, getObject...) yok; istemci tarafı şifreleme kütüphanesi uyarı verir.',
+    '8. Backend API yanıtlarında (res.json/res.send) anahtar malzemesi, nonce/AAD, nesne yolu ve parola özeti dönmüyor.',
+    '9. `.env` dosyası `.gitignore` içinde; `.env.example` içinde KEK, MinIO parolası, HMAC anahtarı ve JWT secret boş.',
     '',
     '## İstemcilerin çağırdığı uç noktalar',
     result.endpoints.length ? result.endpoints.map((e) => `- \`${e}\``).join('\n') : '- (kodda doğrudan çözümlenebilir `/api/` çağrısı bulunamadı)',
