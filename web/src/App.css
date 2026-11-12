@@ -265,6 +265,19 @@ input:focus {
   cursor: pointer;
 }
 
+.file-information {
+  flex: 1;
+}
+
+.file-actions,
+.permission-actions,
+.share-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* =========================
    DOSYA PAYLAŞIM VE YETKİLER
 ========================= */
@@ -272,6 +285,29 @@ input:focus {
 .selected-file {
   color: #94a3b8;
   margin-bottom: 25px;
+}
+
+.share-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.share-header h2 {
+  margin-bottom: 15px;
+}
+
+.share-header button,
+.file-actions button,
+.permission-actions button,
+.share-form-actions button {
+  padding: 10px 14px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .share-form {
@@ -317,6 +353,10 @@ input:focus {
   cursor: pointer;
 }
 
+.share-form-actions {
+  margin-top: 10px;
+}
+
 .permission-list {
   margin-top: 35px;
 }
@@ -342,7 +382,8 @@ input:focus {
   margin-top: 7px;
 }
 
-.revoke-button {
+.revoke-button,
+.permission-actions .revoke-button {
   background: #991b1b;
   color: white;
   border: none;
@@ -353,6 +394,52 @@ input:focus {
 
 .revoke-button:hover {
   background: #b91c1c;
+}
+
+.file-detail {
+  padding: 18px;
+  margin-bottom: 25px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 9px;
+}
+
+.file-detail p,
+.form-hint {
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.expired-label {
+  color: #f87171 !important;
+  font-weight: bold;
+}
+
+/* =========================
+   KULLANICI ARAMA
+========================= */
+
+.user-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 500px;
+  margin-top: -5px;
+}
+
+.user-search-results button {
+  padding: 12px;
+  text-align: left;
+  color: #e2e8f0;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.user-search-results button:hover {
+  background: #1e3a5f;
 }
 
 /* =========================
@@ -396,105 +483,17 @@ input:focus {
     padding: 25px;
   }
 
-
-  /* Dosya detayları ve paylaşım kontrolleri */
-
-  .file-information {
-    flex: 1;
-  }
-
   .file-actions,
-  .permission-actions,
-  .share-form-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+  .permission-actions {
+    width: 100%;
   }
 
   .file-actions button,
-  .permission-actions button,
-  .share-form-actions button,
-  .share-header button {
-    padding: 10px 14px;
-    background: #2563eb;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
+  .permission-actions button {
+    flex: 1;
   }
 
   .share-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-  }
-
-  .share-header h2 {
-    margin-bottom: 15px;
-  }
-
-  .file-detail {
-    padding: 18px;
-    margin-bottom: 25px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 9px;
-  }
-
-  .file-detail p,
-  .form-hint {
-    color: #94a3b8;
-    font-size: 13px;
-    margin-top: 8px;
-  }
-
-  .permission-actions .revoke-button {
-    background: #991b1b;
-  }
-
-  .expired-label {
-    color: #f87171 !important;
-    font-weight: bold;
-  }
-
-  @media (max-width: 600px) {
-
-    .file-actions,
-    .permission-actions {
-      width: 100%;
-    }
-
-    .file-actions button,
-    .permission-actions button {
-      flex: 1;
-    }
-
-    .share-header {
-      align-items: flex-start;
-    }
-  }
-
-  .user-search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-width: 500px;
-    margin-top: -5px;
-  }
-
-  .user-search-results button {
-    padding: 12px;
-    text-align: left;
-    color: #e2e8f0;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .user-search-results button:hover {
-    background: #1e3a5f;
+    align-items: flex-start;
   }
 }

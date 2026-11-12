@@ -55,7 +55,9 @@ function MyFiles({ onShare, userId }) {
             link.click();
             link.remove();
 
-            window.URL.revokeObjectURL(url);
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+            }, 1000);
         } catch (err) {
             setError(getApiErrorMessage(err));
         }
@@ -85,6 +87,7 @@ function MyFiles({ onShare, userId }) {
         if (!bytes) return "0 B";
 
         const units = ["B", "KB", "MB", "GB"];
+
         const index = Math.min(
             Math.floor(Math.log(bytes) / Math.log(1024)),
             units.length - 1
@@ -121,13 +124,16 @@ function MyFiles({ onShare, userId }) {
                                     <h3>{file.original_name}</h3>
 
                                     <p>
-                                        Boyut: {formatSize(Number(file.size_bytes))}
+                                        Boyut:{" "}
+                                        {formatSize(Number(file.size_bytes))}
                                     </p>
 
                                     <p>
                                         Yüklenme tarihi:{" "}
                                         {file.created_at
-                                            ? new Date(file.created_at).toLocaleString("tr-TR")
+                                            ? new Date(
+                                                file.created_at
+                                            ).toLocaleString("tr-TR")
                                             : "-"}
                                     </p>
 
@@ -143,7 +149,9 @@ function MyFiles({ onShare, userId }) {
                                         type="button"
                                         onClick={() => onShare(file)}
                                     >
-                                        Dosya Detayı
+                                        {isOwner
+                                            ? "Paylaşım Yetkileri"
+                                            : "Dosya Detayı"}
                                     </button>
 
                                     <button
@@ -154,21 +162,14 @@ function MyFiles({ onShare, userId }) {
                                     </button>
 
                                     {isOwner && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => onShare(file)}
-                                            >
-                                                Paylaşım Yetkileri
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDelete(file.id)}
-                                            >
-                                                Dosyayı Sil
-                                            </button>
-                                        </>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleDelete(file.id)
+                                            }
+                                        >
+                                            Dosyayı Sil
+                                        </button>
                                     )}
                                 </div>
                             </div>
