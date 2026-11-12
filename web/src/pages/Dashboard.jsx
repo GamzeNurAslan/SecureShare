@@ -7,7 +7,6 @@ import ShareFile from "./ShareFile";
 
 function Dashboard() {
     const { user, logout } = useAuth();
-
     const [refresh, setRefresh] = useState(0);
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -17,11 +16,8 @@ function Dashboard() {
                 <h1>SecureShare</h1>
 
                 <div>
-                    <span>{user?.full_name}</span>
-
-                    <button onClick={logout}>
-                        Çıkış Yap
-                    </button>
+                    <span>{user?.full_name || user?.email}</span>
+                    <button onClick={logout}>Çıkış Yap</button>
                 </div>
             </header>
 
@@ -32,11 +28,15 @@ function Dashboard() {
 
                 <MyFiles
                     key={refresh}
+                    userId={user?.id}
                     onShare={(file) => setSelectedFile(file)}
                 />
 
                 {selectedFile && (
-                    <ShareFile file={selectedFile} />
+                    <ShareFile
+                        file={selectedFile}
+                        onClose={() => setSelectedFile(null)}
+                    />
                 )}
             </main>
         </div>

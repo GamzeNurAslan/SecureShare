@@ -1,13 +1,12 @@
 
 import axios from "axios";
 
-// Backend API adresi
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
     timeout: 15000,
 });
 
-// Her isteğe JWT token ekle
+// JWT token otomatik eklenir.
 api.interceptors.request.use(
     (config) => {
         const token = sessionStorage.getItem("token");
@@ -21,31 +20,33 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// API hata mesajını al
+// API hata mesajları
 export const getApiErrorMessage = (error) => {
-    return (
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Bir hata oluştu. Lütfen tekrar deneyin."
-    );
+    if (error.response) {
+        return (
+            error.response.data?.error ||
+            error.response.data?.message ||
+            `Sunucu hatası: ${error.response.status}`
+        );
+    }
+
+    if (error.request) {
+        return "Sunucuya ulaşılamıyor. Backend çalışıyor mu?";
+    }
+
+    return error.message || "Beklenmeyen bir hata oluştu.";
 };
 
 // Kimlik doğrulama işlemleri
 export const authAPI = {
-    register: (userData) =>
-        api.post("/api/auth/register", userData),
-
-    login: (userData) =>
-        api.post("/api/auth/login", userData),
+    register: (userData) => api.post("/api/auth/register", userData),
+    login: (userData) => api.post("/api/auth/login", userData),
 };
 
 // Dosya işlemleri
 export const fileAPI = {
-    // Dosyaları listele
-    getFiles: () =>
-        api.get("/api/files"),
+    getFiles: () => api.get("/api/files"),
 
-    // Dosya yükle
     uploadFile: (file) => {
         const formData = new FormData();
         formData.append("file", file);
@@ -53,28 +54,30 @@ export const fileAPI = {
         return api.post("/api/files", formData);
     },
 
-    // Dosyayı indir
+    searchUsers: (query) =>
+        api.get("/api/files/users/search", {
+            params: { q: query },
+        }),
+
     downloadFile: (fileId) =>
         api.get(`/api/files/${fileId}`, {
             responseType: "blob",
         }),
 
-    // Dosyanın izinlerini listele
+    deleteFile: (fileId) =>
+        api.delete(`/api/files/${fileId}`),
+
     getPermissions: (fileId) =>
         api.get(`/api/files/${fileId}/permissions`),
 
-    // Kullanıcıya izin ver
     grantPermission: (fileId, permissionData) =>
-        api.post(
-            `/api/files/${fileId}/permissions`,
-            permissionData
-        ),
+        api.post(`/api/files/${fileId}/permissions`, permissionData),
 
-    // İzni kaldır
+    updatePermission: (fileId, permissionData) =>
+        api.post(`/api/files/${fileId}/permissions`, permissionData),
+
     revokePermission: (fileId, userId) =>
-        api.delete(
-            `/api/files/${fileId}/permissions/${userId}`
-        ),
+        api.delete(`/api/files/${fileId}/permissions/${userId}`),
 };
 
 export default api;
