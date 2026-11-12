@@ -321,7 +321,42 @@ router.post("/:id/permissions", async (req, res) => {
         });
     }
 });
+// --------------------------------------------------
+// GET /api/files/users/search?q=email
+// Kayıtlı kullanıcı arama
+// --------------------------------------------------
+router.get("/users/search", async (req, res) => {
+    const db = req.app.locals.db;
+    const query = String(req.query.q || "").trim();
 
+    if (query.length < 3) {
+        return res.status(400).json({
+            error: "En az 3 karakter girin.",
+        });
+    }
+
+    try {
+        const result = await db.query(
+            `SELECT id, email
+             FROM users
+             WHERE LOWER(email) LIKE LOWER($1)
+             AND id <> $2
+             ORDER BY email
+             LIMIT 10`,
+            [`%${query}%`, req.user.id]
+        );
+
+        return res.json({
+            users: result.rows,
+        });
+    } catch (error) {
+        console.error("Kullanıcı arama hatası:", error.message);
+
+        return res.status(500).json({
+            error: "Kullanıcılar aranamadı.",
+        });
+    }
+});
 // --------------------------------------------------
 // GET /api/files/:id/permissions
 // Dosyanın erişim izinlerini listeleme
@@ -512,5 +547,109 @@ router.get("/:id", async (req, res) => {
         });
     }
 });
+// DELETE /api/files/:id
+// Yalnızca dosya sahibi dosyayı silebilir.
+router.delete("/:id", async (req, res) => {
+    const db = req.app.locals.db;
+    const storage = req.app.locals.storage;
+    const fileId = req.params.id;
 
+    if (!UUID_RE.test(fileId)) {
+        return res.status(400).json({
+            error: "Geçersiz dosya kimliği.",
+        });
+    }
+
+    if (!storage) {
+        return res.status(503).json({
+            error: "MinIO bağlantısı hazır değil.",
+        });
+    }
+
+    let client;
+    let transactionStarted = false;
+    let objectKey = null;
+    let encryptedBackup = null;
+    let objectRemoved = false;
+
+    try {
+        client = await db.connect();
+
+        await client.query("BEGIN");
+        transactionStarted = true;
+
+        // Dosyanın varlığını ve sahibini kontrol et.
+        const result = await client.query(
+            `SELECT id, object_key
+             FROM files
+             WHERE id = $1 AND owner_id = $2
+             FOR UPDATE`,
+            [fileId, req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            await client.query("ROLLBACK");
+            transactionStarted = false;
+
+            return res.status(404).json({
+                error: "Dosya bulunamadı veya silme yetkiniz yok.",
+            });
+        }
+
+        objectKey = result.rows[0].object_key;
+
+        // Silme başarısız olursa geri yüklemek için şifreli yedeği al.
+        encryptedBackup = await storage.get(objectKey);
+
+        // Önce MinIO nesnesini sil.
+        await storage.remove(objectKey);
+        objectRemoved = true;
+
+        // PostgreSQL metadata kaydını sil.
+        // file_permissions kayıtları ON DELETE CASCADE ile silinir.
+        await client.query(
+            `DELETE FROM files
+             WHERE id = $1 AND owner_id = $2`,
+            [fileId, req.user.id]
+        );
+
+        await client.query("COMMIT");
+        transactionStarted = false;
+
+        return res.json({
+            message: "Dosya başarıyla silindi.",
+            file_id: fileId,
+        });
+
+    } catch (error) {
+        if (transactionStarted && client) {
+            await client.query("ROLLBACK").catch(() => { });
+        }
+
+        // Veritabanı işlemi başarısızsa MinIO nesnesini geri yükle.
+        if (objectRemoved && encryptedBackup && objectKey) {
+            try {
+                await storage.put(objectKey, encryptedBackup);
+            } catch (restoreError) {
+                console.error(
+                    "MinIO geri yükleme hatası:",
+                    restoreError.message
+                );
+
+                return res.status(500).json({
+                    error: "Silme başarısız oldu. Dosyanın depolama durumu manuel kontrol edilmeli.",
+                });
+            }
+        }
+
+        console.error("Dosya silme hatası:", error.message);
+
+        return res.status(500).json({
+            error: "Dosya silinemedi.",
+        });
+
+    } finally {
+        if (client) client.release();
+    }
+});
 module.exports = router;
