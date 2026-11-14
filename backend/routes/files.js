@@ -350,8 +350,7 @@ router.get("/users/search", async (req, res) => {
     const db = req.app.locals.db;
     const query = String(req.query.q || "").trim();
 
-<<<<<<< HEAD
-=======
+
     if (query.length < 3) {
         return res.status(400).json({
             error: "En az 3 karakter girin.",
@@ -381,7 +380,7 @@ router.get("/users/search", async (req, res) => {
     }
 });
 // --------------------------------------------------
->>>>>>> origin/main
+
 // GET /api/files/:id/permissions
 router.get("/:id/permissions", async (req, res) => {
     const db = req.app.locals.db;
