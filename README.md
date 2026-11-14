@@ -1,263 +1,222 @@
 # SecureShare
 
-SecureShare, dosyaların şifrelenerek saklanmasını ve yalnızca yetkili kullanıcılarla paylaşılmasını amaçlayan güvenli dosya paylaşım uygulamasıdır. Proje; kullanıcı kimlik doğrulama, dosya şifreleme, dosya bazlı izinler ve denetlenebilir işlem kayıtlarını tek bir mimaride birleştirmeyi hedefler.
+SecureShare; dosyaları şifreleyerek saklayan ve yalnızca yetkili kullanıcılarla paylaşan güvenli dosya paylaşım uygulamasıdır. Web ve mobil istemciler yalnızca REST API ile haberleşir; PostgreSQL, MinIO ve anahtar malzemesi istemcilere açılmaz.
 
-## Proje amacı
+> Bu proje eğitim ve akademik geliştirme amacıyla hazırlanmıştır. Canlı ortamda TLS, anahtar rotasyonu, oran sınırlama ve merkezi sır yönetimi gibi ek kontroller gerekir.
 
-Kullanıcıların sisteme güvenli biçimde kayıt olabilmesi, giriş yapabilmesi, dosyalarını şifreleyerek saklayabilmesi ve dosyalara verilen erişim izinlerini yönetebilmesi amaçlanmaktadır. Dosya içeriği ile dosya metadata bilgilerinin farklı katmanlarda tutulması, güvenlik ve ölçeklenebilirlik açısından temel tasarım yaklaşımıdır.
+## Özellikler
 
-## Hedef özellikler
-
-- Kullanıcı kayıt ve giriş sistemi
-- Argon2id ile parola hashleme
-- JWT tabanlı kimlik doğrulama
-- Güçlü parola politikası
-- AES-128-GCM ile dosya şifreleme
-- DEK/KEK zarf şifreleme yaklaşımı
-- Şifreli dosyaların MinIO üzerinde saklanması
-- Dosya bazlı READ, DOWNLOAD, SHARE ve DELETE izinleri
-- Süreli izin verme ve yetki iptali
-- Audit log kayıtları ve ilerleyen aşamada hash zinciri
-- React web istemcisi
-- React Native + Expo mobil istemcisi
-
-## Mevcut durum
-
-### Tamamlanan
-
-- PostgreSQL 16 Docker servisi ve temel veritabanı şeması
-- "users", "files", "file_permissions" ve "audit_logs" tabloları
-- Node.js/Express backend başlangıcı
-- "/health" ve "/health/db" sağlık uçları
-- Kullanıcı kayıt ve giriş uçları
-- Argon2id parola hashleme
-- JWT token üretimi
-- Kayıt sırasında güçlü parola kontrolü
-- AES-128-GCM ile dosya şifreleme ve çözme modülü
-- DEK’in KEK ile sarılması ve açılması
-- Şifreleme için 13 otomatik test
-- React Native + Expo giriş, kayıt ve dashboard arayüzü
-
-### Geliştirme aşamasında
-
-- MinIO bağlantısı ve şifreli nesne yükleme/indirme API’leri
-- Dosya paylaşımı, izin kontrolü ve yetki iptali API’leri
-- Audit log üretiminin API işlemlerine bağlanması
-- Hash zinciri ile log bütünlüğü doğrulaması
-- React web istemcisi
-- Uçtan uca entegrasyon ve performans testleri
-
-## Teknoloji yığını
-
-| Katman | Teknoloji | Kullanım |
+| Alan | Durum | Açıklama |
 |---|---|---|
-| Web istemcisi | React | Planlanan web arayüzü |
-| Mobil istemci | React Native + Expo | Giriş, kayıt ve dashboard arayüzü |
-| Backend | Node.js + Express | REST API ve iş kuralları |
-| Veritabanı | PostgreSQL 16 | Kullanıcı, dosya metadata, izin ve log bilgileri |
-| Dosya depolama | MinIO | Geliştirme aşamasında; şifreli nesne depolama |
-| Kimlik doğrulama | JWT | Oturum/token doğrulama |
-| Parola güvenliği | Argon2id | Parolaları düz metin saklamadan hashleme |
-| Dosya şifreleme | AES-128-GCM | Gizlilik ve bütünlük koruması |
-| Anahtar yönetimi | DEK/KEK | Dosya anahtarlarının güvenli biçimde korunması |
-| Geliştirme ortamı | Docker Compose | Yerel PostgreSQL çalıştırma |
+| Kayıt ve giriş | Tamamlandı | Argon2id parola hashleme ve JWT oturumu |
+| Dosya şifreleme | Tamamlandı | AES-128-GCM, dosya başına DEK ve KEK ile zarf şifreleme |
+| Güvenli depolama | Tamamlandı | MinIO'ya yalnızca şifreli veri yazılır |
+| Dosya yükleme ve listeleme | Tamamlandı | Web ve mobil istemcilerden REST API üzerinden |
+| Okuma ve indirme izinleri | Tamamlandı | Süreli veya süresiz READ ve DOWNLOAD izni |
+| Paylaşım yönetimi | Tamamlandı | Dosya sahibi izin verebilir, güncelleyebilir ve kaldırabilir |
+| Güvenli önizleme | Tamamlandı | Okuma izni olan kullanıcı PDF ve görselleri görüntüleyebilir |
+| Audit log | Tamamlandı | Dosya erişimi ve izin işlemleri için hash bağlı kayıtlar |
+| Web istemcisi | Tamamlandı | React + Vite |
+| Mobil istemci | Tamamlandı | React Native + Expo |
+
+## Güvenlik modeli
+
+- Parolalar Argon2id ile hashlenir; düz metin parola saklanmaz.
+- Her dosya AES-128-GCM ile ayrı bir DEK kullanılarak şifrelenir.
+- DEK, `KEK_HEX` ile sarılır; şifreli dosya MinIO'da, metadata ve sarılmış DEK PostgreSQL'de tutulur.
+- İstemciler MinIO, PostgreSQL, KEK, DEK veya JWT sunucu sırrına doğrudan erişmez.
+- Dosya sahibi paylaşım ve silme işlemlerini yönetir.
+- READ izni dosyayı güvenli önizlemede açar; DOWNLOAD izni ayrıca dosyayı indirmeyi sağlar.
+- İznin geçerlilik tarihi dolduğunda dosya erişimi otomatik olarak engellenir.
 
 ## Mimari
 
-~~~text
-React / React Native + Expo
+```text
+React web / React Native + Expo
               |
+              | REST API + JWT
               v
-       Node.js REST API
-          /          \
-         v            v
-   PostgreSQL       MinIO
-  (metadata, izin,   (şifreli dosya
-   audit kayıtları)   nesneleri)
-~~~
+        Node.js + Express
+           |            |
+           v            v
+     PostgreSQL        MinIO
+  (metadata, izin,   (yalnızca
+    audit log)      şifreli nesne)
+```
 
-Dosyanın içeriği AES-128-GCM ile şifrelenir. Her dosya için ayrı bir DEK üretilir ve bu DEK, KEK ile sarılarak PostgreSQL’de metadata ile birlikte tutulur. Şifreli dosya içeriğinin MinIO’ya, dosya adı/türü/boyutu/izin bilgilerinin ise PostgreSQL’e yazılması planlanmaktadır.
+## Teknolojiler
+
+| Katman | Teknoloji |
+|---|---|
+| Web | React, Vite, Axios |
+| Mobil | React Native, Expo, SecureStore, DocumentPicker |
+| Backend | Node.js, Express |
+| Veritabanı | PostgreSQL 16 |
+| Nesne depolama | MinIO (S3 uyumlu) |
+| Kimlik doğrulama | JWT, Argon2id |
+| Şifreleme | AES-128-GCM, DEK/KEK |
+| Denetim kaydı | PostgreSQL hash bağlı audit log |
 
 ## Proje yapısı
 
-~~~text
+```text
 SecureShare/
-├── backend/
-│   ├── crypto/encryption.js       # AES-128-GCM ve DEK/KEK işlemleri
-│   ├── scripts/demo-encrypt.js    # Yerel şifreleme/çözme demosu
-│   ├── test/encryption.test.js    # Şifreleme testleri
-│   ├── server.js                  # Express REST API
-│   ├── package.json
-│   └── package-lock.json
-├── docs/
-│   ├── database/schema.sql        # PostgreSQL tabloları ve indeksler
-│   └── authentication.md          # Kimlik doğrulama notları
-├── mobile/                        # React Native + Expo istemcisi
-├── web/                           # React web istemcisi için ayrılmış klasör
-├── docker-compose.yml             # Yerel PostgreSQL servisi
-├── .env.example                   # Ortam değişkenleri şablonu
+├── backend/       # Node.js REST API, şifreleme ve MinIO katmanı
+├── web/           # React + Vite web istemcisi
+├── mobile/        # React Native + Expo mobil istemcisi
+├── docs/          # Şema, entegrasyon ve test notları
+├── docker-compose.yml
+├── .env.example
 └── README.md
-~~~
+```
 
 ## Gereksinimler
 
 - Git
 - Node.js 18 veya üzeri
 - Docker Desktop
-- PowerShell (Windows kullanımı için)
+- PowerShell (Windows kurulumu için)
 
 ## Yerel kurulum
 
-### 1. Projeyi hazırlama
+### 1. Ortam değişkenleri
 
-~~~powershell
+```powershell
 git clone https://github.com/GamzeNurAslan/SecureShare.git
 cd SecureShare
 Copy-Item .env.example .env
-~~~
+```
 
-.env dosyası yerel ve gizlidir; Git’e gönderilmemelidir. POSTGRES_* değerlerini yerel PostgreSQL ayarlarınıza göre düzenleyin.
+`.env` dosyası yereldir; Git'e eklenmemelidir. `JWT_SECRET`, `KEK_HEX` ve `MINIO_ROOT_PASSWORD` için güçlü değerler belirleyin.
 
-AES-128-GCM için 128 bit bir KEK üretin:
+128 bit KEK üretmek için:
 
-~~~powershell
+```powershell
 node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
-~~~
+```
 
-Üretilen 32 karakterlik değeri .env dosyasındaki KEK_HEX değişkenine yazın.
+Üretilen 32 karakterlik hex değeri `KEK_HEX` değişkenine yazın.
 
-### 2. PostgreSQL’i başlatma
+### 2. PostgreSQL ve MinIO
 
-Proje kök klasöründe:
-
-~~~powershell
+```powershell
 docker compose up -d
 docker compose ps
-~~~
-
-Konteynerin bağlantı kabul ettiğini kontrol edin:
-
-~~~powershell
 docker exec secureshare-postgres pg_isready -U secureshare -d secureshare
-~~~
-
-Beklenen sonuç accepting connections ifadesidir.
+```
 
 Yeni bir veritabanında şemayı uygulamak için:
 
-~~~powershell
+```powershell
 Get-Content -Raw docs/database/schema.sql |
   docker exec -i secureshare-postgres psql -U secureshare -d secureshare
-~~~
+```
 
-### 3. Backend’i çalıştırma
+### 3. Backend
 
-~~~powershell
+```powershell
 cd backend
 npm install
 npm test
 node server.js
-~~~
+```
 
-Backend varsayılan olarak http://localhost:3000 adresinde çalışır.
+Örnek `.env.example`, API'yi `http://localhost:3001` adresinde başlatır. Sağlık kontrolleri:
 
-Sağlık kontrolleri:
+```powershell
+Invoke-RestMethod http://localhost:3001/health
+Invoke-RestMethod http://localhost:3001/health/db
+```
 
-~~~powershell
-Invoke-RestMethod http://localhost:3000/health
-Invoke-RestMethod http://localhost:3000/health/db
-~~~
+### 4. Web istemcisi
 
-### 4. Mobil istemciyi çalıştırma
+Yeni bir terminalde:
 
-Backend açık kalırken ikinci bir terminalde:
+```powershell
+cd web
+npm install
+npm run dev
+```
 
-~~~powershell
+Vite'ın terminalde verdiği adresi açın. Farklı bir API adresi kullanmak için `VITE_API_URL` ortam değişkeni tanımlanabilir.
+
+### 5. Mobil istemci
+
+Yeni bir terminalde:
+
+```powershell
 cd mobile
 npm install
 npm run web
-~~~
+```
 
-Expo’nun terminalde gösterdiği web adresini tarayıcıda açın. Mobil cihazda çalıştırırken mobile/App.tsx içindeki API_URL değerini bilgisayarın yerel IP adresine göre güncellemeniz gerekebilir; localhost fiziksel cihazın kendisini ifade eder.
+Fiziksel telefonla testte `localhost` telefonun kendisini gösterir. Bu durumda `mobile/App.tsx` içindeki API adresini bilgisayarın yerel IP adresiyle değiştirin ve backend'i ağdan erişilebilen bir adreste çalıştırın.
 
-## REST API uçları
+## REST API
 
-### Sağlık uçları
-
-| Method | Uç | Açıklama |
-|---|---|---|
-| GET | /health | Backend’in çalıştığını kontrol eder |
-| GET | /health/db | PostgreSQL’e SELECT 1 sorgusu gönderir |
-
-### Kimlik doğrulama uçları
+Tüm `/api/files` uçları JWT gerektirir.
 
 | Method | Uç | Açıklama |
 |---|---|---|
-| POST | /api/auth/register | Kullanıcı oluşturur ve JWT döndürür |
-| POST | /api/auth/login | Kullanıcıyı doğrular ve JWT döndürür |
+| GET | `/health` | Backend sağlık kontrolü |
+| GET | `/health/db` | PostgreSQL bağlantı kontrolü |
+| POST | `/api/auth/register` | Kullanıcı kaydı ve JWT üretimi |
+| POST | `/api/auth/login` | Kullanıcı girişi ve JWT üretimi |
+| GET | `/api/files` | Sahip olunan veya paylaşılan dosyaları listeler |
+| POST | `/api/files` | Dosyayı şifreleyip MinIO'ya yükler |
+| GET | `/api/files/:id/view` | READ izniyle güvenli önizleme |
+| GET | `/api/files/:id` | DOWNLOAD izniyle dosya indirir |
+| DELETE | `/api/files/:id` | Dosya sahibinin dosyayı silmesi |
+| GET | `/api/files/users/search?q=` | Kayıtlı kullanıcı araması |
+| GET | `/api/files/:id/permissions` | Dosya sahibinin izinleri görüntülemesi |
+| POST | `/api/files/:id/permissions` | READ/DOWNLOAD izni verme veya güncelleme |
+| DELETE | `/api/files/:id/permissions/:userId` | İzni kaldırma |
 
-Kayıt isteğinde fullName, email ve password; giriş isteğinde email ve password alanları kullanılır. Parolalar API yanıtında veya loglarda düz metin olarak tutulmaz.
+## Testler ve kalite kontrolleri
 
-## Şifreleme demosu
-
-.env içinde KEK_HEX tanımlandıktan sonra backend klasöründe:
-
-~~~powershell
-node scripts/demo-encrypt.js "C:\ornek\dosya.txt"
-~~~
-
-Demo, dosyanın .enc biçiminde şifrelenmiş kopyasını ve .dec biçiminde çözülmüş kopyasını oluşturur. SHA-256 değerlerini karşılaştırarak çözme işleminin başarılı olup olmadığını gösterir. Oluşturulan .enc ve .dec dosyaları repoya eklenmemelidir.
-
-## Testler
-
-Backend klasöründe:
-
-~~~powershell
+```powershell
+# Backend
+cd backend
 npm test
-~~~
 
-Testler; şifreleme/çözme, yanlış KEK, değiştirilmiş veri, değiştirilmiş authentication tag, yanlış AAD/nonce ve DEK sarma-açma senaryolarını kontrol eder.
+# Web
+cd ../web
+npm run lint
+
+# Mobil TypeScript kontrolü
+cd ../mobile
+npx tsc --noEmit
+```
+
+İstemci sınırı denetimi; web ve mobil uygulamaların yalnızca REST API ile haberleştiğini, sunucu sırlarına ve altyapı servislerine doğrudan erişmediğini doğrular. Ayrıntı için [client-api-boundary-report.md](docs/client-api-boundary-report.md) dosyasına bakın.
+
+## Geliştirme notları
+
+- `file_permissions` şeması gelecekteki `can_share` ve `can_delete` alanlarını içerir.
+- Mevcut arayüz ve API, paylaşım ile silme işlemlerini dosya sahibinin yönetmesi ilkesini uygular.
+- Canlı ortam için TLS, CORS sınırlandırması, rate limiting, antivirüs taraması ve merkezi secret yönetimi eklenmelidir.
 
 ## Git çalışma düzeni
 
-Her özellik ayrı bir branch üzerinde geliştirilmelidir:
+Değişiklikleri doğrudan `main` dalına göndermeyin. Özellik dalı açın, yalnızca ilgili dosyaları stage edin ve Pull Request ile incelemeye gönderin.
 
-~~~text
-feature/backend
-feature/auth
-feature/encryption
-feature/web
-feature/mobile
-~~~
-
-Örnek akış:
-
-~~~powershell
+```powershell
 git switch main
 git pull origin main
 git switch -c feature/ornek-ozellik
-git add <yalnızca ilgili dosyalar>
+git add <ilgili-dosyalar>
 git commit -m "feat: açıklayıcı mesaj"
 git push -u origin feature/ornek-ozellik
-~~~
+```
 
-Değişiklikler Pull Request üzerinden incelenip main branch’ine birleştirilir. .env, parolalar, JWT/KEK anahtarları, node_modules, yüklenen dosyalar ve yerel .enc/.dec çıktıları commit edilmemelidir. git add . kullanmadan önce git status ile hangi dosyaların ekleneceğini kontrol edin.
+`.env`, parolalar, JWT/KEK anahtarları, `node_modules`, yüklenen dosyalar ve yerel test çıktıları commit edilmemelidir.
 
-## Takım görevleri
+## Takım
 
-- **Gamze Nur Aslan:** PostgreSQL şeması, kayıt/giriş, Argon2id, JWT ve mobil istemci akışları
-- **Büşra Özer:** Node.js backend altyapısı, REST API ve erişim kontrolü
-- **Hava Şener:** AES-128-GCM, DEK/KEK, MinIO entegrasyonu ve entegrasyon testleri
-
-## Sorun giderme
-
-- Cannot GET /: Backend’in kök adresinde (/) sayfa yoktur. /health uç noktasını kullanın.
-- Failed to fetch: Backend çalışmıyor olabilir veya mobil istemcinin API_URL değeri yanlış olabilir.
-- /health/db 500 döndürüyorsa Docker Desktop’ı açıp docker compose up -d çalıştırın.
-- Giriş/kayıt 500 döndürüyorsa backend terminalindeki hata logunu kontrol edin.
-- docker compose yapılandırması bulunamıyorsa komutu proje kök klasöründe çalıştırın.
+- **Gamze Nur Aslan:** veritabanı, kimlik doğrulama ve mobil uygulama
+- **Büşra Özer:** backend, REST API, erişim kontrolü ve web uygulaması
+- **Hava Şener:** dosya şifreleme, güvenli depolama, entegrasyon ve testler
 
 ## Lisans
 
-Bu proje eğitim ve akademik geliştirme amacıyla hazırlanmaktadır.
-
+Bu proje eğitim ve akademik geliştirme amacıyla geliştirilmektedir.
