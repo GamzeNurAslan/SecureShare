@@ -14,7 +14,6 @@ import {
   Text,
   TextInput,
   View,
-  Image,
 } from 'react-native';
 
 type Mode = 'login' | 'register';
@@ -28,7 +27,7 @@ type FileItem = {
   created_at: string;
 };
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'http://localhost:3001';
 const TOKEN_KEY = 'secureshare_token';
 
 const palettes = {
@@ -69,6 +68,15 @@ const palettes = {
 } as const;
 
 type Palette = (typeof palettes)[ThemeMode];
+
+function BrandMark() {
+  return (
+    <View accessibilityLabel="SecureShare logosu" accessibilityRole="image" style={styles.brandMark}>
+      <Text style={[styles.brandS, styles.brandSBack]}>S</Text>
+      <Text style={[styles.brandS, styles.brandSFront]}>S</Text>
+    </View>
+  );
+}
 
 async function saveToken(token: string) {
   if (Platform.OS === 'web') {
@@ -271,7 +279,7 @@ function AuthScreen({
           >
             <View style={styles.authTopRow}>
               <View style={styles.brandRow}>
-                <Image source={require('./assets/secureshare-logo.png')} style={styles.logoImage} resizeMode="contain" />
+                <BrandMark />
                 <Text style={[styles.brandText, { color: colors.accent }]}>SecureShare</Text>
               </View>
               <ThemeToggle themeMode={themeMode} onPress={onToggleTheme} colors={colors} />
@@ -631,7 +639,7 @@ function Dashboard({
         >
           <View style={styles.header}>
             <View style={styles.brandRow}>
-              <Image source={require('./assets/secureshare-logo.png')} style={styles.logoImage} resizeMode="contain" />
+              <BrandMark />
               <Text style={[styles.brandText, { color: colors.accent }]}>SecureShare</Text>
             </View>
 
@@ -834,10 +842,34 @@ const styles = StyleSheet.create({
     fontSize: 27,
     marginRight: 10,
   },
-  logoImage: {
-    height: 42,
+  brandMark: {
+    height: 38,
     marginRight: 10,
-    width: 42,
+    position: 'relative',
+    width: 39,
+  },
+  brandS: {
+    fontSize: 37,
+    fontStyle: 'italic',
+    fontWeight: '900',
+    left: 0,
+    lineHeight: 37,
+    position: 'absolute',
+    textShadowColor: 'rgba(49, 91, 230, 0.28)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 7,
+    top: 0,
+  },
+  brandSBack: {
+    color: '#55A9FF',
+    transform: [{ rotate: '-10deg' }],
+  },
+  brandSFront: {
+    color: '#5B55E8',
+    left: 9,
+    opacity: 0.94,
+    top: 10,
+    transform: [{ rotate: '10deg' }],
   },
   brandText: {
     color: '#60A5FA',

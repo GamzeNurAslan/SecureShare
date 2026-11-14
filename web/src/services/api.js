@@ -2,7 +2,8 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
+    // Yerel Week 6 backend'i 3001 portunda çalışıyor; dağıtımda VITE_API_URL ile değiştirilebilir.
+    baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001",
     timeout: 15000,
 });
 
@@ -61,6 +62,11 @@ export const fileAPI = {
 
     downloadFile: (fileId) =>
         api.get(`/api/files/${fileId}`, {
+            responseType: "blob",
+        }),
+
+    viewFile: (fileId) =>
+        api.get(`/api/files/${fileId}/view`, {
             responseType: "blob",
         }),
 

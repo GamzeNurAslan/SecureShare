@@ -12,9 +12,12 @@ function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [lightMode, setLightMode] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -38,13 +41,33 @@ function Register() {
     };
 
     return (
-        <div className="auth-container">
+        <div className={`auth-container ${lightMode ? "light-mode" : ""}`}>
             <div className="auth-card">
-                <div className="logo">SecureShare</div>
+                <div className="auth-header-row">
+                    <div className="logo" aria-label="SecureShare">
+                        <span className="brand-mark" aria-hidden="true">
+                            <span>S</span>
+                            <span>S</span>
+                        </span>
+                        <span>SecureShare</span>
+                    </div>
+                    <button
+                        type="button"
+                        className="theme-toggle"
+                        onClick={() => setLightMode((current) => !current)}
+                        aria-label={lightMode ? "Koyu moda geç" : "Açık moda geç"}
+                    >
+                        <span aria-hidden="true">{lightMode ? "🌙" : "☀️"}</span>
+                        {lightMode ? "Koyu mod" : "Açık mod"}
+                    </button>
+                </div>
 
-                <h1>Hesap Oluştur</h1>
+                <div className="auth-eyebrow">GÜVENLİ DOSYA PLATFORMU</div>
+
+                <h1>Dosyalarınızın kontrolü sizde</h1>
                 <p className="subtitle">
-                    Dosyalarını güvenle paylaşmaya başla.
+                    Dosyalarınızı güçlü şifreleme ile koruyun, yalnızca izin verdiğiniz
+                    kişilerle güvenle paylaşın.
                 </p>
 
                 <form onSubmit={handleSubmit}>
@@ -67,22 +90,44 @@ function Register() {
                     />
 
                     <label>Şifre</label>
-                    <input
-                        type="password"
-                        placeholder="Güçlü bir şifre oluşturun"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
+                    <div className="password-field">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Parolanızı girin"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                        <button
+                            type="button"
+                            className="password-toggle"
+                            onClick={() => setShowPassword((current) => !current)}
+                            aria-label={showPassword ? "Parolayı gizle" : "Parolayı göster"}
+                            aria-pressed={showPassword}
+                        >
+                            {showPassword ? "◉" : "◌"}
+                        </button>
+                    </div>
 
                     <label>Şifre Tekrar</label>
-                    <input
-                        type="password"
-                        placeholder="Şifrenizi tekrar girin"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                    />
+                    <div className="password-field">
+                        <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Parolanızı tekrar girin"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                        <button
+                            type="button"
+                            className="password-toggle"
+                            onClick={() => setShowConfirmPassword((current) => !current)}
+                            aria-label={showConfirmPassword ? "Parolayı gizle" : "Parolayı göster"}
+                            aria-pressed={showConfirmPassword}
+                        >
+                            {showConfirmPassword ? "◉" : "◌"}
+                        </button>
+                    </div>
 
                     {error && <div className="error-message">{error}</div>}
 
@@ -92,7 +137,9 @@ function Register() {
                 </form>
 
                 <p className="auth-footer">
-                    Zaten hesabın var mı? <Link to="/login">Giriş Yap</Link>
+                    <Link className="auth-pill auth-pill-primary" to="/login">
+                        Zaten hesabınız var mı? Giriş yapın
+                    </Link>
                 </p>
             </div>
         </div>
