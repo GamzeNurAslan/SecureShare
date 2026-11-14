@@ -1,6 +1,6 @@
 # SecureShare
 
-https://github.com/GamzeNurAslan/SecureShare/blob/8fcbf3b1b9c88f485ed69766733287a00a12b64f/docs/Ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC%202026-11-14%20164701.png
+![SecureShare ekran görüntüsü](https://raw.githubusercontent.com/GamzeNurAslan/SecureShare/main/docs/Ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC%202026-11-14%20164701.png)
 
 SecureShare; dosyaları şifreleyerek saklayan ve yalnızca yetkili kullanıcılarla paylaşan güvenli dosya paylaşım uygulamasıdır. Web ve mobil istemciler yalnızca REST API ile haberleşir; PostgreSQL, MinIO ve anahtar malzemesi istemcilere açılmaz.
 
