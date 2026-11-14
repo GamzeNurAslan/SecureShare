@@ -28,13 +28,13 @@ Dosya sahiplerinin kayıtlı kullanıcılarla dosya paylaşabilmesini, verilen i
 
 ## Hava’nın Görevleri
 
-- [ ] `audit_logs` tablosuna kayıt ekleyen ortak bir audit log modülü hazırlanacak.
-- [ ] Dosya paylaşımı işlemi `FILE_SHARED` olarak loglanacak.
-- [ ] İzin kaldırma işlemi `FILE_PERMISSION_REVOKED` olarak loglanacak.
-- [ ] Başarılı dosya indirme işlemi `FILE_DOWNLOADED` olarak loglanacak.
-- [ ] Yetkisiz veya süresi dolmuş izinle yapılan erişimler `FILE_ACCESS_DENIED` olarak loglanacak.
-- [ ] Log kayıtlarında işlem yapan kullanıcı, ilgili dosya, işlem türü, sonuç ve gerekli sınırlı detaylar tutulacak.
-- [ ] Audit log hash zinciri için `previous_hash` ve `entry_hash` alanlarının üretim yöntemi belirlenecek ve test edilecek.
+- [x] `audit_logs` tablosuna kayıt ekleyen ortak bir audit log modülü hazırlanacak.
+- [x] Dosya paylaşımı işlemi `FILE_SHARED` olarak loglanacak.
+- [x] İzin kaldırma işlemi `FILE_PERMISSION_REVOKED` olarak loglanacak.
+- [x] Başarılı dosya indirme işlemi `FILE_DOWNLOADED` olarak loglanacak.
+- [x] Yetkisiz veya süresi dolmuş izinle yapılan erişimler `FILE_ACCESS_DENIED` olarak loglanacak.
+- [x] Log kayıtlarında işlem yapan kullanıcı, ilgili dosya, işlem türü, sonuç ve gerekli sınırlı detaylar tutulacak.
+- [x] Audit log hash zinciri için `previous_hash` ve `entry_hash` alanlarının üretim yöntemi belirlenecek ve test edilecek.
 
 ## Gamze’nin Görevleri
 
@@ -46,8 +46,8 @@ Dosya sahiplerinin kayıtlı kullanıcılarla dosya paylaşabilmesini, verilen i
 - [x] İzin kaldırıldıktan sonra kullanıcının dosyaya tekrar erişemediği doğrulanacak.
 - [x] Süresi geçmiş izinle erişimin reddedildiği test edilecek.
 - [x] PostgreSQL üzerindeki `file_permissions` kayıtları kontrol edildi.
-- [ ] `audit_logs` kayıtları kontrol edilecek.
-- [ ] Test ekran görüntüleri ve 5. hafta rapor notları hazırlanacak.
+- [x] `audit_logs` kayıtları kontrol edilecek.
+- [x] Test ekran görüntüleri ve 5. hafta rapor notları hazırlanacak.
 
 ## Genel Kabul Kriterleri
 
@@ -55,8 +55,8 @@ Dosya sahiplerinin kayıtlı kullanıcılarla dosya paylaşabilmesini, verilen i
 - [x] Paylaşılan kullanıcı yalnızca kendisine verilen izin kapsamındaki işlemleri yapabiliyor.
 - [x] İzin süresi dolduğunda erişim otomatik engelleniyor.
 - [x] İzin kaldırıldığında kullanıcı dosyaya tekrar erişemiyor.
-- [ ] Paylaşma, indirme, izin kaldırma ve reddedilen erişim işlemleri audit log’a yazılıyor.
-- [ ] Audit log kayıtlarında parola, JWT veya şifreleme anahtarı bulunmuyor.
+- [x] Paylaşma, indirme, izin kaldırma ve reddedilen erişim işlemleri audit log’a yazılıyor.
+- [x] Audit log kayıtlarında parola, JWT veya şifreleme anahtarı bulunmuyor.
 - [x] Paylaşım ve yetkilendirme testleri başarıyla tamamlanıyor.
 
 ## Kapsam Dışı

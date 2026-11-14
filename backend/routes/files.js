@@ -10,23 +10,24 @@ const {
     loadKek,
 } = require("../crypto/encryption");
 
+const {
+    writeAuditLog,
+} = require("../services/auditLogService");
+
 const router = express.Router();
 
-// Tüm endpoint'ler JWT doğrulamasından geçer.
 router.use(authMiddleware);
 
-// Dosyalar bellekte tutulur.
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        fileSize: 50 * 1024 * 1024, // 50 MB
+        fileSize: 50 * 1024 * 1024,
     },
 });
 
 const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Son kullanma tarihi kontrolü.
 function parseExpirationDate(value) {
     if (value === undefined || value === null || value === "") {
         return { valid: true, date: null };
@@ -51,7 +52,6 @@ function parseExpirationDate(value) {
     };
 }
 
-// E-posta kontrolü.
 function validEmail(email) {
     return (
         typeof email === "string" &&
@@ -60,22 +60,18 @@ function validEmail(email) {
     );
 }
 
-// Dosyanın kullanıcının sahibi olduğu bir dosya olup olmadığını kontrol eder.
 async function findOwnedFile(db, fileId, ownerId) {
     const result = await db.query(
         `SELECT id, owner_id
-     FROM files
-     WHERE id = $1 AND owner_id = $2`,
+         FROM files
+         WHERE id = $1 AND owner_id = $2`,
         [fileId, ownerId]
     );
 
     return result.rows[0] || null;
 }
 
-// --------------------------------------------------
 // POST /api/files
-// Dosya yükleme
-// --------------------------------------------------
 router.post("/", upload.single("file"), async (req, res) => {
     const db = req.app.locals.db;
     const storage = req.app.locals.storage;
@@ -97,25 +93,32 @@ router.post("/", upload.single("file"), async (req, res) => {
     const aad = Buffer.from(`${fileId}:${req.user.id}`);
 
     try {
-        const encrypted = encryptFile(req.file.buffer, loadKek(), aad);
+        const encrypted = encryptFile(
+            req.file.buffer,
+            loadKek(),
+            aad
+        );
 
-        await storage.put(objectKey, encrypted.encryptedData);
+        await storage.put(
+            objectKey,
+            encrypted.encryptedData
+        );
 
         const result = await db.query(
             `INSERT INTO files (
-        id,
-        owner_id,
-        original_name,
-        object_key,
-        mime_type,
-        size_bytes,
-        encrypted_dek,
-        nonce,
-        aad,
-        encryption_algorithm
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      RETURNING id, original_name, mime_type, size_bytes, created_at`,
+                id,
+                owner_id,
+                original_name,
+                object_key,
+                mime_type,
+                size_bytes,
+                encrypted_dek,
+                nonce,
+                aad,
+                encryption_algorithm
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            RETURNING id, original_name, mime_type, size_bytes, created_at`,
             [
                 fileId,
                 req.user.id,
@@ -135,9 +138,12 @@ router.post("/", upload.single("file"), async (req, res) => {
             file: result.rows[0],
         });
     } catch (error) {
-        await storage.remove(objectKey).catch(() => { });
+        await storage.remove(objectKey).catch(() => {});
 
-        console.error("Dosya yükleme hatası:", error.message);
+        console.error(
+            "Dosya yükleme hatası:",
+            error.message
+        );
 
         return res.status(500).json({
             error: "Dosya yüklenemedi.",
@@ -145,31 +151,31 @@ router.post("/", upload.single("file"), async (req, res) => {
     }
 });
 
-// --------------------------------------------------
 // GET /api/files
-// Kullanıcının erişebildiği dosyaları listeleme
-// --------------------------------------------------
 router.get("/", async (req, res) => {
     const db = req.app.locals.db;
 
     try {
         const result = await db.query(
             `SELECT DISTINCT
-        f.id,
-        f.original_name,
-        f.mime_type,
-        f.size_bytes,
-        f.owner_id,
-        f.created_at
-      FROM files f
-      LEFT JOIN file_permissions p
-        ON p.file_id = f.id
-        AND p.user_id = $1
-        AND (p.expires_at IS NULL OR p.expires_at > NOW())
-      WHERE f.owner_id = $1
-        OR p.can_read = TRUE
-        OR p.can_download = TRUE
-      ORDER BY f.created_at DESC`,
+                f.id,
+                f.original_name,
+                f.mime_type,
+                f.size_bytes,
+                f.owner_id,
+                f.created_at
+             FROM files f
+             LEFT JOIN file_permissions p
+                ON p.file_id = f.id
+                AND p.user_id = $1
+                AND (
+                    p.expires_at IS NULL
+                    OR p.expires_at > NOW()
+                )
+             WHERE f.owner_id = $1
+                OR p.can_read = TRUE
+                OR p.can_download = TRUE
+             ORDER BY f.created_at DESC`,
             [req.user.id]
         );
 
@@ -177,7 +183,10 @@ router.get("/", async (req, res) => {
             files: result.rows,
         });
     } catch (error) {
-        console.error("Dosya listeleme hatası:", error.message);
+        console.error(
+            "Dosya listeleme hatası:",
+            error.message
+        );
 
         return res.status(500).json({
             error: "Dosyalar listelenemedi.",
@@ -185,10 +194,7 @@ router.get("/", async (req, res) => {
     }
 });
 
-// --------------------------------------------------
 // POST /api/files/:id/permissions
-// Dosyaya başka bir kullanıcı için erişim izni verme
-// --------------------------------------------------
 router.post("/:id/permissions", async (req, res) => {
     const db = req.app.locals.db;
 
@@ -232,7 +238,6 @@ router.post("/:id/permissions", async (req, res) => {
     }
 
     try {
-        // Dosyanın sahibi yalnızca dosya sahibi paylaşım yapabilir.
         const file = await findOwnedFile(
             db,
             req.params.id,
@@ -245,11 +250,10 @@ router.post("/:id/permissions", async (req, res) => {
             });
         }
 
-        // Paylaşım yapılacak kullanıcıyı e-posta ile bul.
         const userResult = await db.query(
             `SELECT id, email
-       FROM users
-       WHERE LOWER(email) = LOWER($1)`,
+             FROM users
+             WHERE LOWER(email) = LOWER($1)`,
             [email.trim()]
         );
 
@@ -267,34 +271,31 @@ router.post("/:id/permissions", async (req, res) => {
             });
         }
 
-        // Kullanıcının izinlerini ekle veya mevcut izinlerini güncelle.
         const permissionResult = await db.query(
             `INSERT INTO file_permissions (
-        file_id,
-        user_id,
-        can_read,
-        can_download,
-        expires_at,
-        granted_by
-      )
-      VALUES ($1, $2, $3, $4, $5, $6)
-
-      ON CONFLICT (file_id, user_id)
-      DO UPDATE SET
-        can_read = EXCLUDED.can_read,
-        can_download = EXCLUDED.can_download,
-        expires_at = EXCLUDED.expires_at,
-        granted_by = EXCLUDED.granted_by
-
-      RETURNING
-        id,
-        file_id,
-        user_id,
-        can_read,
-        can_download,
-        expires_at,
-        granted_by,
-        created_at`,
+                file_id,
+                user_id,
+                can_read,
+                can_download,
+                expires_at,
+                granted_by
+            )
+            VALUES ($1,$2,$3,$4,$5,$6)
+            ON CONFLICT (file_id, user_id)
+            DO UPDATE SET
+                can_read = EXCLUDED.can_read,
+                can_download = EXCLUDED.can_download,
+                expires_at = EXCLUDED.expires_at,
+                granted_by = EXCLUDED.granted_by
+            RETURNING
+                id,
+                file_id,
+                user_id,
+                can_read,
+                can_download,
+                expires_at,
+                granted_by,
+                created_at`,
             [
                 req.params.id,
                 targetUser.id,
@@ -305,6 +306,23 @@ router.post("/:id/permissions", async (req, res) => {
             ]
         );
 
+        await writeAuditLog({
+            db,
+            actorUserId: req.user.id,
+            fileId: req.params.id,
+            action: "FILE_SHARED",
+            result: "SUCCESS",
+            details: {
+                targetUserId: targetUser.id,
+                targetEmail: targetUser.email,
+                canRead: can_read,
+                canDownload: can_download,
+                expiresAt: expiration.date
+                    ? expiration.date.toISOString()
+                    : null,
+            },
+        });
+
         return res.status(200).json({
             message: "Dosya paylaşım izni kaydedildi.",
             user: {
@@ -314,7 +332,10 @@ router.post("/:id/permissions", async (req, res) => {
             permission: permissionResult.rows[0],
         });
     } catch (error) {
-        console.error("Dosya paylaşım izni hatası:", error.message);
+        console.error(
+            "Dosya paylaşım izni hatası:",
+            error.message
+        );
 
         return res.status(500).json({
             error: "Dosya paylaşım izni kaydedilemedi.",
@@ -322,10 +343,7 @@ router.post("/:id/permissions", async (req, res) => {
     }
 });
 
-// --------------------------------------------------
 // GET /api/files/:id/permissions
-// Dosyanın erişim izinlerini listeleme
-// --------------------------------------------------
 router.get("/:id/permissions", async (req, res) => {
     const db = req.app.locals.db;
 
@@ -344,24 +362,25 @@ router.get("/:id/permissions", async (req, res) => {
 
         if (!file) {
             return res.status(404).json({
-                error: "Dosya bulunamadı veya izinleri görüntüleme yetkiniz yok.",
+                error:
+                    "Dosya bulunamadı veya izinleri görüntüleme yetkiniz yok.",
             });
         }
 
         const result = await db.query(
             `SELECT
-        p.id,
-        p.user_id,
-        u.email,
-        p.can_read,
-        p.can_download,
-        p.expires_at,
-        p.granted_by,
-        p.created_at
-      FROM file_permissions p
-      INNER JOIN users u ON u.id = p.user_id
-      WHERE p.file_id = $1
-      ORDER BY p.created_at DESC`,
+                p.id,
+                p.user_id,
+                u.email,
+                p.can_read,
+                p.can_download,
+                p.expires_at,
+                p.granted_by,
+                p.created_at
+             FROM file_permissions p
+             INNER JOIN users u ON u.id = p.user_id
+             WHERE p.file_id = $1
+             ORDER BY p.created_at DESC`,
             [req.params.id]
         );
 
@@ -369,7 +388,10 @@ router.get("/:id/permissions", async (req, res) => {
             permissions: result.rows,
         });
     } catch (error) {
-        console.error("İzin listeleme hatası:", error.message);
+        console.error(
+            "İzin listeleme hatası:",
+            error.message
+        );
 
         return res.status(500).json({
             error: "Dosya izinleri listelenemedi.",
@@ -377,10 +399,7 @@ router.get("/:id/permissions", async (req, res) => {
     }
 });
 
-// --------------------------------------------------
 // DELETE /api/files/:id/permissions/:userId
-// Kullanıcının dosya erişim iznini kaldırma
-// --------------------------------------------------
 router.delete("/:id/permissions/:userId", async (req, res) => {
     const db = req.app.locals.db;
 
@@ -404,14 +423,15 @@ router.delete("/:id/permissions/:userId", async (req, res) => {
 
         if (!file) {
             return res.status(404).json({
-                error: "Dosya bulunamadı veya izinleri değiştirme yetkiniz yok.",
+                error:
+                    "Dosya bulunamadı veya izinleri değiştirme yetkiniz yok.",
             });
         }
 
         const result = await db.query(
             `DELETE FROM file_permissions
-       WHERE file_id = $1 AND user_id = $2
-       RETURNING user_id`,
+             WHERE file_id = $1 AND user_id = $2
+             RETURNING user_id`,
             [fileId, userId]
         );
 
@@ -421,12 +441,26 @@ router.delete("/:id/permissions/:userId", async (req, res) => {
             });
         }
 
+        await writeAuditLog({
+            db,
+            actorUserId: req.user.id,
+            fileId,
+            action: "FILE_PERMISSION_REVOKED",
+            result: "SUCCESS",
+            details: {
+                targetUserId: userId,
+            },
+        });
+
         return res.json({
             message: "Dosya erişim izni kaldırıldı.",
             user_id: result.rows[0].user_id,
         });
     } catch (error) {
-        console.error("İzin kaldırma hatası:", error.message);
+        console.error(
+            "İzin kaldırma hatası:",
+            error.message
+        );
 
         return res.status(500).json({
             error: "Dosya erişim izni kaldırılamadı.",
@@ -434,10 +468,7 @@ router.delete("/:id/permissions/:userId", async (req, res) => {
     }
 });
 
-// --------------------------------------------------
 // GET /api/files/:id
-// Dosya indirme
-// --------------------------------------------------
 router.get("/:id", async (req, res) => {
     const db = req.app.locals.db;
     const storage = req.app.locals.storage;
@@ -455,16 +486,21 @@ router.get("/:id", async (req, res) => {
     }
 
     try {
-        // Dosya sahibi veya aktif indirme izni olan kullanıcı indirebilir.
         const result = await db.query(
             `SELECT f.*
-       FROM files f
-       LEFT JOIN file_permissions p
-         ON p.file_id = f.id
-         AND p.user_id = $2
-         AND (p.expires_at IS NULL OR p.expires_at > NOW())
-       WHERE f.id = $1
-         AND (f.owner_id = $2 OR p.can_download = TRUE)`,
+             FROM files f
+             LEFT JOIN file_permissions p
+                ON p.file_id = f.id
+                AND p.user_id = $2
+                AND (
+                    p.expires_at IS NULL
+                    OR p.expires_at > NOW()
+                )
+             WHERE f.id = $1
+                AND (
+                    f.owner_id = $2
+                    OR p.can_download = TRUE
+                )`,
             [
                 req.params.id,
                 req.user.id,
@@ -472,17 +508,31 @@ router.get("/:id", async (req, res) => {
         );
 
         if (result.rows.length === 0) {
+            await writeAuditLog({
+                db,
+                actorUserId: req.user.id,
+                fileId: null,
+                action: "FILE_ACCESS_DENIED",
+                result: "DENIED",
+                details: {
+                    requestedFileId: req.params.id,
+                    reason:
+                        "file_not_found_or_download_permission_missing",
+                },
+            });
+
             return res.status(404).json({
-                error: "Dosya bulunamadı veya indirme yetkiniz yok.",
+                error:
+                    "Dosya bulunamadı veya indirme yetkiniz yok.",
             });
         }
 
         const file = result.rows[0];
 
-        // MinIO'dan şifreli dosyayı al.
-        const encryptedData = await storage.get(file.object_key);
+        const encryptedData = await storage.get(
+            file.object_key
+        );
 
-        // Dosyanın şifresini çöz.
         const plainData = decryptFile(
             {
                 encryptedData,
@@ -493,19 +543,37 @@ router.get("/:id", async (req, res) => {
             loadKek()
         );
 
+        await writeAuditLog({
+            db,
+            actorUserId: req.user.id,
+            fileId: req.params.id,
+            action: "FILE_DOWNLOADED",
+            result: "SUCCESS",
+            details: {
+                originalName: file.original_name,
+                sizeBytes: Number(file.size_bytes),
+            },
+        });
+
         res.setHeader(
             "Content-Type",
-            file.mime_type || "application/octet-stream"
+            file.mime_type ||
+                "application/octet-stream"
         );
 
         res.setHeader(
             "Content-Disposition",
-            `attachment; filename*=UTF-8''${encodeURIComponent(file.original_name)}`
+            `attachment; filename*=UTF-8''${encodeURIComponent(
+                file.original_name
+            )}`
         );
 
         return res.send(plainData);
     } catch (error) {
-        console.error("Dosya indirme hatası:", error.message);
+        console.error(
+            "Dosya indirme hatası:",
+            error.message
+        );
 
         return res.status(500).json({
             error: "Dosya indirilemedi.",
