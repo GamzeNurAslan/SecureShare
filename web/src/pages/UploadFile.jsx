@@ -2,19 +2,15 @@
 import { useState } from "react";
 import { fileAPI, getApiErrorMessage } from "../services/api";
 
-function UploadFile({ onUploadSuccess }) {
-    const [selectedFile, setSelectedFile] = useState(null);
+function UploadFile({ onUploadSuccess, fileInputRef }) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
-    const handleUpload = async (e) => {
-        e.preventDefault();
+    const handleFileChange = async (event) => {
+        const selectedFile = event.target.files?.[0];
 
-        if (!selectedFile) {
-            setError("Lütfen bir dosya seçin.");
-            return;
-        }
+        if (!selectedFile) return;
 
         try {
             setLoading(true);
@@ -24,9 +20,7 @@ function UploadFile({ onUploadSuccess }) {
             await fileAPI.uploadFile(selectedFile);
 
             setMessage("Dosya başarıyla yüklendi.");
-            setSelectedFile(null);
-
-            e.target.reset();
+            event.target.value = "";
 
             if (onUploadSuccess) {
                 onUploadSuccess();
@@ -40,18 +34,28 @@ function UploadFile({ onUploadSuccess }) {
 
     return (
         <div className="upload-container">
-            <h2>Dosya Yükle</h2>
+            <p className="dashboard-eyebrow">GÜVENLİ DOSYA YÖNETİMİ</p>
+            <h1>Dosyalarım</h1>
+            <p className="upload-description">
+                Şifrelenmiş dosyalarınızı güvenle yönetin ve paylaşın.
+            </p>
 
-            <form onSubmit={handleUpload}>
-                <input
-                    type="file"
-                    onChange={(e) => setSelectedFile(e.target.files[0])}
-                />
+            <input
+                ref={fileInputRef}
+                className="hidden-file-input"
+                type="file"
+                onChange={handleFileChange}
+            />
 
-                <button type="submit" disabled={loading}>
-                    {loading ? "Yükleniyor..." : "Dosyayı Yükle"}
-                </button>
-            </form>
+            <button
+                type="button"
+                className="upload-primary-button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+            >
+                <span aria-hidden="true">＋</span>
+                {loading ? "Dosya yükleniyor..." : "Dosya Yükle"}
+            </button>
 
             {message && <p className="success-message">{message}</p>}
             {error && <p className="error-message">{error}</p>}

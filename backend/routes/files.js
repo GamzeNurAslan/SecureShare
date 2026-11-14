@@ -163,7 +163,9 @@ router.get("/", async (req, res) => {
                 f.mime_type,
                 f.size_bytes,
                 f.owner_id,
-                f.created_at
+                f.created_at,
+                COALESCE(p.can_read, FALSE) AS can_read,
+                COALESCE(p.can_download, FALSE) AS can_download
              FROM files f
              LEFT JOIN file_permissions p
                 ON p.file_id = f.id
@@ -502,6 +504,105 @@ router.delete("/:id/permissions/:userId", async (req, res) => {
 
         return res.status(500).json({
             error: "Dosya erişim izni kaldırılamadı.",
+        });
+    }
+});
+
+// GET /api/files/:id/view
+// Dosya sahibi ile okuma izni olan kullanıcılar için güvenli önizleme.
+router.get("/:id/view", async (req, res) => {
+    const db = req.app.locals.db;
+    const storage = req.app.locals.storage;
+
+    if (!UUID_RE.test(req.params.id)) {
+        return res.status(400).json({
+            error: "Geçersiz dosya kimliği.",
+        });
+    }
+
+    if (!storage) {
+        return res.status(503).json({
+            error: "MinIO bağlantısı hazır değil.",
+        });
+    }
+
+    try {
+        const result = await db.query(
+            `SELECT f.*
+             FROM files f
+             LEFT JOIN file_permissions p
+                ON p.file_id = f.id
+                AND p.user_id = $2
+                AND (
+                    p.expires_at IS NULL
+                    OR p.expires_at > NOW()
+                )
+             WHERE f.id = $1
+                AND (
+                    f.owner_id = $2
+                    OR p.can_read = TRUE
+                    OR p.can_download = TRUE
+                )`,
+            [req.params.id, req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            await writeAuditLog({
+                db,
+                actorUserId: req.user.id,
+                fileId: null,
+                action: "FILE_VIEW_DENIED",
+                result: "DENIED",
+                details: {
+                    requestedFileId: req.params.id,
+                    reason: "file_not_found_or_read_permission_missing",
+                },
+            });
+
+            return res.status(404).json({
+                error: "Dosya bulunamadı veya görüntüleme yetkiniz yok.",
+            });
+        }
+
+        const file = result.rows[0];
+        const encryptedData = await storage.get(file.object_key);
+        const plainData = decryptFile(
+            {
+                encryptedData,
+                encryptedDek: file.encrypted_dek,
+                nonce: file.nonce,
+                aad: file.aad,
+            },
+            loadKek()
+        );
+
+        await writeAuditLog({
+            db,
+            actorUserId: req.user.id,
+            fileId: req.params.id,
+            action: "FILE_VIEWED",
+            result: "SUCCESS",
+            details: {
+                originalName: file.original_name,
+                sizeBytes: Number(file.size_bytes),
+            },
+        });
+
+        res.setHeader(
+            "Content-Type",
+            file.mime_type || "application/octet-stream"
+        );
+        res.setHeader(
+            "Content-Disposition",
+            `inline; filename*=UTF-8''${encodeURIComponent(file.original_name)}`
+        );
+
+        return res.send(plainData);
+    } catch (error) {
+        console.error("Dosya görüntüleme hatası:", error.message);
+
+        return res.status(500).json({
+            error: "Dosya görüntülenemedi.",
         });
     }
 });

@@ -203,191 +203,202 @@ function ShareFile({ file, onClose }) {
     };
 
     return (
-        <section className="share-container">
-            <div className="share-header">
-                <h2>Dosya Detayı ve Paylaşım Yönetimi</h2>
-
-                {onClose && (
-                    <button type="button" onClick={onClose}>
-                        Kapat
-                    </button>
-                )}
-            </div>
-
-            <div className="file-detail">
-                <h3>{file.original_name}</h3>
-
-                <p>Dosya boyutu: {formatSize(Number(file.size_bytes))}</p>
-
-                <p>
-                    Yüklenme tarihi:{" "}
-                    {file.created_at
-                        ? new Date(file.created_at).toLocaleString("tr-TR")
-                        : "-"}
-                </p>
-            </div>
-
-            <h3>{editingUserId ? "İzinleri Güncelle" : "Dosya Paylaş"}</h3>
-
-            <form onSubmit={handleGrantPermission} className="share-form">
-                <label>Kullanıcının e-posta adresi</label>
-
-                <input
-                    type="email"
-                    placeholder="Kullanıcı e-posta adresi ara"
-                    value={email}
-                    onChange={(e) => handleSearchUsers(e.target.value)}
-                    required
-                    disabled={Boolean(editingUserId) || loading}
-                />
-
-                {searchingUsers && <p>Kullanıcılar aranıyor...</p>}
-
-                {users.length > 0 && !editingUserId && (
-                    <div className="user-search-results">
-                        {users.map((user) => (
-                            <button
-                                type="button"
-                                key={user.id}
-                                onClick={() => {
-                                    setEmail(user.email);
-                                    setUsers([]);
-                                }}
-                            >
-                                {user.email}
-                            </button>
-                        ))}
+        <section
+            className="share-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-dialog-title"
+        >
+            <div className="share-container">
+                <header className="share-header">
+                    <div>
+                        <p className="share-kicker">ERİŞİM KASASI</p>
+                        <h2 id="share-dialog-title">Paylaşım ayarları</h2>
+                        <p className="share-subtitle">
+                            Dosyanız için erişim izinlerini güvenle yönetin.
+                        </p>
                     </div>
-                )}
 
-                <div className="permission-options">
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={canRead}
-                            onChange={(e) => setCanRead(e.target.checked)}
-                            disabled={loading}
-                        />
-                        Okuma izni
-                    </label>
-
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={canDownload}
-                            onChange={(e) => setCanDownload(e.target.checked)}
-                            disabled={loading}
-                        />
-                        İndirme izni
-                    </label>
-                </div>
-
-                <label>İzin son geçerlilik tarihi</label>
-
-                <input
-                    type="datetime-local"
-                    value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
-                    min={minDate}
-                    disabled={loading}
-                />
-
-                <p className="form-hint">
-                    Tarih seçmezseniz izin süresiz olur.
-                </p>
-
-                <div className="share-form-actions">
-                    <button type="submit" disabled={loading || searchingUsers}>
-                        {loading
-                            ? "İşleniyor..."
-                            : editingUserId
-                                ? "İzinleri Güncelle"
-                                : "İzin Ver"}
-                    </button>
-
-                    {editingUserId && (
+                    {onClose && (
                         <button
                             type="button"
-                            onClick={resetForm}
-                            disabled={loading}
+                            className="share-close-button"
+                            onClick={onClose}
                         >
-                            Düzenlemeyi İptal Et
+                            Kapat
                         </button>
                     )}
+                </header>
+
+                <div className="share-file-summary">
+                    <span className="share-file-badge" aria-hidden="true">▣</span>
+                    <div>
+                        <h3>{file.original_name}</h3>
+                        <p>
+                            {formatSize(Number(file.size_bytes))} · {file.created_at
+                                ? new Date(file.created_at).toLocaleString("tr-TR")
+                                : "Tarih bilgisi yok"}
+                        </p>
+                    </div>
                 </div>
-            </form>
 
-            {error && <p className="error-message">{error}</p>}
-            {message && <p className="success-message">{message}</p>}
+                <div className="share-grid">
+                    <div className="share-editor">
+                        <h3>{editingUserId ? "İzinleri güncelle" : "Yeni erişim ver"}</h3>
+                        <p className="share-section-hint">
+                            E-posta ile bir kullanıcı seçin ve hangi işlemleri
+                            yapabileceğini belirleyin.
+                        </p>
 
-            <div className="permission-list">
-                <h3>Verilmiş İzinler</h3>
+                        <form onSubmit={handleGrantPermission} className="share-form">
+                            <label>Kullanıcının e-posta adresi</label>
 
-                {permissions.length === 0 ? (
-                    <p>Bu dosya henüz kimseyle paylaşılmamış.</p>
-                ) : (
-                    permissions.map((permission) => {
-                        const expired = isExpired(permission.expires_at);
+                            <input
+                                type="email"
+                                placeholder="Kullanıcı e-posta adresi ara"
+                                value={email}
+                                onChange={(e) => handleSearchUsers(e.target.value)}
+                                required
+                                disabled={Boolean(editingUserId) || loading}
+                            />
 
-                        return (
-                            <div className="permission-card" key={permission.id}>
-                                <div>
-                                    <strong>{permission.email}</strong>
+                            {searchingUsers && <p>Kullanıcılar aranıyor...</p>}
 
-                                    <p>
-                                        Okuma:{" "}
-                                        {permission.can_read ? "İzinli" : "İzin yok"}
-                                    </p>
-
-                                    <p>
-                                        İndirme:{" "}
-                                        {permission.can_download ? "İzinli" : "İzin yok"}
-                                    </p>
-
-                                    <p>
-                                        Geçerlilik:{" "}
-                                        {permission.expires_at
-                                            ? new Date(
-                                                permission.expires_at
-                                            ).toLocaleString("tr-TR")
-                                            : "Süresiz"}
-                                    </p>
-
-                                    {expired && (
-                                        <p className="expired-label">
-                                            Süresi dolmuş
-                                        </p>
-                                    )}
+                            {users.length > 0 && !editingUserId && (
+                                <div className="user-search-results">
+                                    {users.map((user) => (
+                                        <button
+                                            type="button"
+                                            key={user.id}
+                                            onClick={() => {
+                                                setEmail(user.email);
+                                                setUsers([]);
+                                            }}
+                                        >
+                                            {user.email}
+                                        </button>
+                                    ))}
                                 </div>
+                            )}
 
-                                <div className="permission-actions">
-                                    <button
-                                        type="button"
+                            <div className="permission-options">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={canRead}
+                                        onChange={(e) => setCanRead(e.target.checked)}
                                         disabled={loading}
-                                        onClick={() =>
-                                            handleEditPermission(permission)
-                                        }
-                                    >
-                                        Düzenle
-                                    </button>
+                                    />
+                                    Okuma izni
+                                </label>
 
-                                    <button
-                                        type="button"
-                                        className="revoke-button"
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={canDownload}
+                                        onChange={(e) => setCanDownload(e.target.checked)}
                                         disabled={loading}
-                                        onClick={() =>
-                                            handleRevokePermission(
-                                                permission.user_id
-                                            )
-                                        }
-                                    >
-                                        İzni Kaldır
-                                    </button>
-                                </div>
+                                    />
+                                    İndirme izni
+                                </label>
                             </div>
-                        );
-                    })
-                )}
+
+                            <label>İzin son geçerlilik tarihi</label>
+
+                            <input
+                                type="datetime-local"
+                                value={expiresAt}
+                                onChange={(e) => setExpiresAt(e.target.value)}
+                                min={minDate}
+                                disabled={loading}
+                            />
+
+                            <p className="form-hint">
+                                Tarih seçmezseniz izin süresiz olur.
+                            </p>
+
+                            <div className="share-form-actions">
+                                <button type="submit" disabled={loading || searchingUsers}>
+                                    {loading
+                                        ? "İşleniyor..."
+                                        : editingUserId
+                                            ? "İzinleri Güncelle"
+                                            : "İzin Ver"}
+                                </button>
+
+                                {editingUserId && (
+                                    <button
+                                        type="button"
+                                        className="share-cancel-button"
+                                        onClick={resetForm}
+                                        disabled={loading}
+                                    >
+                                        Vazgeç
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+
+                        {error && <p className="error-message">{error}</p>}
+                        {message && <p className="success-message">{message}</p>}
+                    </div>
+
+                    <aside className="permission-list">
+                        <div className="permission-list-heading">
+                            <h3>Aktif izinler</h3>
+                            <span>{permissions.length}</span>
+                        </div>
+
+                        {permissions.length === 0 ? (
+                            <div className="permission-empty-state">
+                                <span aria-hidden="true">✦</span>
+                                <strong>Henüz kimse eklenmedi</strong>
+                                <p>Dosyanın erişimi şu an yalnızca sizde.</p>
+                            </div>
+                        ) : (
+                            permissions.map((permission) => {
+                                const expired = isExpired(permission.expires_at);
+
+                                return (
+                                    <article className="permission-card" key={permission.id}>
+                                        <strong>{permission.email}</strong>
+                                        <p>
+                                            Okuma {permission.can_read ? "açık" : "kapalı"}
+                                            <span aria-hidden="true"> · </span>
+                                            İndirme {permission.can_download ? "açık" : "kapalı"}
+                                        </p>
+                                        <p className={expired ? "expired-label" : "permission-expiry"}>
+                                            {expired
+                                                ? "Süresi dolmuş"
+                                                : permission.expires_at
+                                                    ? `Bitiş: ${new Date(permission.expires_at).toLocaleString("tr-TR")}`
+                                                    : "Süresiz erişim"}
+                                        </p>
+
+                                        <div className="permission-actions">
+                                            <button
+                                                type="button"
+                                                disabled={loading}
+                                                onClick={() => handleEditPermission(permission)}
+                                            >
+                                                Düzenle
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                className="revoke-button"
+                                                disabled={loading}
+                                                onClick={() => handleRevokePermission(permission.user_id)}
+                                            >
+                                                Kaldır
+                                            </button>
+                                        </div>
+                                    </article>
+                                );
+                            })
+                        )}
+                    </aside>
+                </div>
             </div>
         </section>
     );
