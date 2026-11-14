@@ -20,9 +20,9 @@
 
 ## Hava’nın 4. Hafta Kalan Görevleri
 
-- [ ] Mevcut şifreleme ve MinIO kodu gerçek dosya API’sine bağlandı.
-- [ ] Şifreleme metadata’sı PostgreSQL `files` tablosuna aktarılıyor.
-- [ ] MinIO’da düz metin dosya tutulmadığı API üzerinden doğrulandı.
+- [x] Mevcut şifreleme ve MinIO kodu gerçek dosya API’sine bağlandı.
+- [x] Şifreleme metadata’sı PostgreSQL `files` tablosuna aktarılıyor.
+- [x] MinIO’da düz metin dosya tutulmadığı API üzerinden doğrulandı.
 
 ## Gamze’nin Görevleri
 
@@ -31,7 +31,7 @@
 - [x] Hava’nın MinIO demosu çalıştırılarak doğrulandı.
 - [x] Orijinal ve çözülen dosyanın SHA-256 değerleri karşılaştırıldı.
 - [x] Büşra’nın PR’ı incelenecek.
-- [ ] Hava’nın API entegrasyon PR’ı incelenecek.
+- [x] Hava’nın API entegrasyon PR’ı incelenecek.
 - [x] JWT ile dosya yükleme testi yapılacak.
 - [x] Dosya indirme ve çözme testi yapılacak.
 - [x] Test ekran görüntüleri toplanacak.
