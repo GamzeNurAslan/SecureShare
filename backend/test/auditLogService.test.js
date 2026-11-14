@@ -42,6 +42,7 @@ function fakeDb() {
                     details,
                     previousHash,
                     entryHash,
+                    entry_hash: entryHash,
                     createdAt,
                 };
 
