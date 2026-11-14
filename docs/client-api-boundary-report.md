@@ -1,7 +1,7 @@
-# İstemci – REST API sınırı denetimi (2026-11-10)
+# İstemci – REST API sınırı denetimi (2026-11-14)
 
 **Sonuç: GEÇTİ** — 0 hata, 0 uyarı.
-Taranan istemci klasörleri: mobile, web · taranan dosya: 5 · ağ çağrısı: 3 (çözümlenemeyen: 1).
+Taranan istemci klasörleri: mobile, web · taranan dosya: 20 · ağ çağrısı: 14 (çözümlenemeyen: 1).
 
 ## Denetlenen kurallar
 1. İstemci `package.json` dosyalarında veritabanı, nesne depolama ve sunucu tarafı paketleri yok.
@@ -16,7 +16,13 @@ Taranan istemci klasörleri: mobile, web · taranan dosya: 5 · ağ çağrısı:
 
 ## İstemcilerin çağırdığı uç noktalar
 - `/api/auth/:param`
+- `/api/auth/login`
+- `/api/auth/register`
 - `/api/files`
+- `/api/files/:param`
+- `/api/files/:param/permissions`
+- `/api/files/:param/permissions/:param`
+- `/api/files/users/search`
 
 ## Çözümlenemeyen çağrılar (elle kontrol edilmeli)
 - yok
@@ -25,7 +31,9 @@ Taranan istemci klasörleri: mobile, web · taranan dosya: 5 · ağ çağrısı:
 - `mobile/App.tsx:555` → `fetch(asset.uri)` — Web'de dosya seçiciden gelen yerel blob:/data: adresinden Blob okur; ağ çağrısı değildir. Dosya sonra FormData ile /api/files'a gönderilir (doğrulayan: Hava Şener, 2026-11-07).
 
 ## İstemcinin kodunda geçen adresler
-- `localhost:3000` (`mobile/App.tsx:31`)
+- `localhost:3001` (`mobile/App.tsx:31`)
+- `localhost:3000` (`web/src/services/api.js:5`)
+- `vite.dev` (`web/vite.config.js:4`)
 
 ## Taranan dosyalar
 - `mobile/.claude/settings.json`
@@ -33,6 +41,21 @@ Taranan istemci klasörleri: mobile, web · taranan dosya: 5 · ağ çağrısı:
 - `mobile/App.tsx`
 - `mobile/index.ts`
 - `mobile/tsconfig.json`
+- `web/eslint.config.js`
+- `web/index.html`
+- `web/src/App.jsx`
+- `web/src/context/AuthContext.jsx`
+- `web/src/context/AuthContextValue.js`
+- `web/src/context/useAuth.js`
+- `web/src/main.jsx`
+- `web/src/pages/Dashboard.jsx`
+- `web/src/pages/Login.jsx`
+- `web/src/pages/MyFiles.jsx`
+- `web/src/pages/Register.jsx`
+- `web/src/pages/ShareFile.jsx`
+- `web/src/pages/UploadFile.jsx`
+- `web/src/services/api.js`
+- `web/vite.config.js`
 
 ## Bulgular
 Bulgu yok.
