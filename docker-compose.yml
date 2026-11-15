@@ -10,7 +10,20 @@
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: secureshare-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:${MINIO_PORT}:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+
 volumes:
   postgres_data:
-
-
+  minio_data:

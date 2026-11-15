@@ -1,9 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const {
-    writeAuditLog,
-} = require("../services/auditLogService");
+const { writeAuditLog } = require("../services/auditLogService");
 
 function fakeDb() {
     const rows = [];
@@ -42,6 +40,7 @@ function fakeDb() {
                     details,
                     previousHash,
                     entryHash,
+                    entry_hash: entryHash,
                     createdAt,
                 };
 

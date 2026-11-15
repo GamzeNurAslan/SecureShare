@@ -1,7 +1,6 @@
-import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
+  ActivityIndicator,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -10,144 +9,559 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
+import * as SecureStore from "expo-secure-store";
+import * as DocumentPicker from "expo-document-picker";
 
-type Mode = 'login' | 'register';
+const API_BASE_URL =
+  Platform.OS === 'web'
+    ? 'http://127.0.0.1:3000'
+    : 'http://192.168.1.100:3000';
 
-const files = [
-  { name: 'proje-raporu.pdf', size: '2.4 MB', date: 'Bugün' },
-  { name: 'tasarim-notlari.docx', size: '840 KB', date: 'Dün' },
-  { name: 'sunum.pptx', size: '5.1 MB', date: '8 Ekim' },
-];
+const TOKEN_KEY = "secureshare-token";
 
-export default function App() {
-  const [mode, setMode] = useState<Mode>('login');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [message, setMessage] = useState('');
+type FileItem = {
+  id: string;
+  original_name: string;
+  size_bytes?: number;
+  created_at?: string;
+};
 
-  if (isAuthenticated) {
-    return (
-      <Dashboard
-        onLogout={() => {
-          setIsAuthenticated(false);
-          setMessage('');
-        }}
-      />
+async function saveToken(token: string) {
+  if (Platform.OS === "web") {
+    window.localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  }
+}
+
+async function getToken() {
+  if (Platform.OS === "web") {
+    return window.localStorage.getItem(TOKEN_KEY);
+  }
+
+  return SecureStore.getItemAsync(TOKEN_KEY);
+}
+
+async function removeToken() {
+  if (Platform.OS === "web") {
+    window.localStorage.removeItem(TOKEN_KEY);
+  } else {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  }
+}
+
+async function requestApi(path: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.error ||
+        data.message ||
+        `İşlem başarısız oldu. Kod: ${response.status}`,
     );
   }
 
-  const isRegister = mode === 'register';
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}
-      >
-        <View style={styles.authCard}>
-          <Text style={styles.logo}>🔐 SecureShare</Text>
-          <Text style={styles.title}>Dosyalarınız güvende</Text>
-          <Text style={styles.subtitle}>
-            Dosyalarınızı şifreleyin ve yalnızca yetkilendirdiğiniz kişilerle paylaşın.
-          </Text>
-
-          {isRegister && (
-            <TextInput
-              placeholder="Ad Soyad"
-              placeholderTextColor="#94A3B8"
-              style={styles.input}
-            />
-          )}
-
-          <TextInput
-            placeholder="E-posta"
-            placeholderTextColor="#94A3B8"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-
-          <TextInput
-            placeholder="Parola"
-            placeholderTextColor="#94A3B8"
-            secureTextEntry
-            style={styles.input}
-          />
-
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => setIsAuthenticated(true)}
-          >
-            <Text style={styles.buttonText}>
-              {isRegister ? 'Kayıt Ol' : 'Giriş Yap'}
-            </Text>
-          </TouchableOpacity>
-
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-
-          <TouchableOpacity
-            onPress={() => {
-              setMode(isRegister ? 'login' : 'register');
-              setMessage('');
-            }}
-          >
-            <Text style={styles.switchText}>
-              {isRegister
-                ? 'Zaten hesabınız var mı? Giriş yapın'
-                : 'Hesabınız yok mu? Kayıt olun'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+  return data;
 }
 
-function Dashboard({ onLogout }: { onLogout: () => void }) {
-  const [uploadMessage, setUploadMessage] = useState('');
+function formatSize(bytes?: number) {
+  if (!bytes) return "Boyut bilinmiyor";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export default function App() {
+  const [token, setToken] = useState<string | null>(null);
+  const [files, setFiles] = useState<FileItem[]>([]);
+
+  const [registerMode, setRegisterMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
+
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const colors = darkMode
+    ? {
+        background: "#070b1b",
+        card: "#111a31",
+        input: "#1a2948",
+        border: "#31528b",
+        text: "#f6f8ff",
+        muted: "#9db0d3",
+        primary: "#2f6df6",
+      }
+    : {
+        background: "#eef4ff",
+        card: "#ffffff",
+        input: "#f5f8fd",
+        border: "#c6d7f5",
+        text: "#14213d",
+        muted: "#617596",
+        primary: "#2864e9",
+      };
+
+  useEffect(() => {
+    getToken().then((savedToken) => {
+      if (savedToken) {
+        setToken(savedToken);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      loadFiles();
+    }
+  }, [token]);
+
+  async function loadFiles() {
+    if (!token) return;
+
+    try {
+      const data = await requestApi("/api/files", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setFiles(Array.isArray(data) ? data : data.files || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Dosyalar alınamadı.");
+    }
+  }
+
+  async function handleAuth() {
+    setError("");
+    setMessage("");
+
+    if (!email.trim() || !password) {
+      setError("E-posta ve parola zorunludur.");
+      return;
+    }
+
+    if (registerMode) {
+      if (!fullName.trim()) {
+        setError("Ad soyad zorunludur.");
+        return;
+      }
+
+      if (password.length < 8) {
+        setError("Parola en az 8 karakter olmalıdır.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("Parolalar eşleşmiyor.");
+        return;
+      }
+    }
+
+    try {
+      setLoading(true);
+
+      const body = registerMode
+        ? {
+            fullName: fullName.trim(),
+            email: email.trim(),
+            password,
+          }
+        : {
+            email: email.trim(),
+            password,
+          };
+
+      const data = await requestApi(
+        registerMode ? "/api/auth/register" : "/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        },
+      );
+
+      const receivedToken = data.token || data.accessToken;
+
+      if (registerMode && !receivedToken) {
+        setRegisterMode(false);
+        setPassword("");
+        setConfirmPassword("");
+        setMessage("Hesabınız oluşturuldu. Şimdi giriş yapabilirsiniz.");
+        return;
+      }
+
+      if (!receivedToken) {
+        throw new Error("Sunucudan token alınamadı.");
+      }
+
+      await saveToken(receivedToken);
+      setToken(receivedToken);
+      setPassword("");
+      setConfirmPassword("");
+      setMessage("Giriş başarılı.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "İşlem başarısız oldu.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    await removeToken();
+    setToken(null);
+    setFiles([]);
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setMessage("");
+    setError("");
+  }
+
+  async function handleUpload() {
+    if (!token) return;
+
+    try {
+      setLoading(true);
+      setError("");
+      setMessage("");
+
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const selectedFile = result.assets[0];
+      const formData = new FormData();
+
+      if (Platform.OS === "web") {
+        const fileResponse = await fetch(selectedFile.uri);
+        const blob = await fileResponse.blob();
+
+        (formData as any).append(
+          "file",
+          blob,
+          selectedFile.name || "dosya",
+        );
+      } else {
+        (formData as any).append("file", {
+          uri: selectedFile.uri,
+          name: selectedFile.name || "dosya",
+          type: selectedFile.mimeType || "application/octet-stream",
+        });
+      }
+
+      await requestApi("/api/files", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      setMessage("Dosya başarıyla yüklendi.");
+      await loadFiles();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Dosya yüklenemedi.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!token) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ScrollView contentContainerStyle={styles.centerContent}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.header}>
+              <Text style={styles.logo}>S🔒 SecureShare</Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  { borderColor: colors.border },
+                ]}
+                onPress={() => setDarkMode(!darkMode)}
+              >
+                <Text>{darkMode ? "☀️ Açık mod" : "🌙 Koyu mod"}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.badge}>GÜVENLİ DOSYA PLATFORMU</Text>
+
+            <Text style={[styles.title, { color: colors.text }]}>
+              {registerMode
+                ? "Güvenli hesabınızı oluşturun"
+                : "Dosyalarınızın kontrolü sizde"}
+            </Text>
+
+            <Text style={[styles.subtitle, { color: colors.muted }]}>
+              Dosyalarınızı güçlü şifreleme ile koruyun, yalnızca izin
+              verdiğiniz kişilerle güvenle paylaşın.
+            </Text>
+
+            {registerMode && (
+              <>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Ad Soyad
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Adınızı ve soyadınızı girin"
+                  placeholderTextColor={colors.muted}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                />
+              </>
+            )}
+
+            <Text style={[styles.label, { color: colors.text }]}>
+              E-posta
+            </Text>
+
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.input,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="ornek@email.com"
+              placeholderTextColor={colors.muted}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <Text style={[styles.label, { color: colors.text }]}>
+              Parola
+            </Text>
+
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.input,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Parolanızı girin"
+              placeholderTextColor={colors.muted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            {registerMode && (
+              <>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Parola Tekrar
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Parolanızı tekrar girin"
+                  placeholderTextColor={colors.muted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                />
+              </>
+            )}
+
+            {!!error && <Text style={styles.error}>{error}</Text>}
+            {!!message && <Text style={styles.success}>{message}</Text>}
+
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={handleAuth}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {registerMode ? "Hesap Oluştur" : "Giriş Yap"}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setRegisterMode(!registerMode);
+                setError("");
+                setMessage("");
+              }}
+            >
+              <Text
+                style={[
+                  styles.switchText,
+                  { color: colors.primary },
+                ]}
+              >
+                {registerMode
+                  ? "Zaten hesabınız var mı? Giriş yapın"
+                  : "Hesabınız yok mu? Kayıt olun"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.dashboardContainer}>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        { backgroundColor: colors.background },
+      ]}
+    >
+      <ScrollView contentContainerStyle={styles.dashboard}>
         <View style={styles.header}>
-          <Text style={styles.logo}>🔐 SecureShare</Text>
-          <TouchableOpacity onPress={onLogout}>
-            <Text style={styles.logoutText}>Çıkış</Text>
-          </TouchableOpacity>
+          <Text style={styles.logo}>S🔒 SecureShare</Text>
+
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                { borderColor: colors.border },
+              ]}
+              onPress={() => setDarkMode(!darkMode)}
+            >
+              <Text>{darkMode ? "☀️ Açık mod" : "🌙 Koyu mod"}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleLogout}>
+              <Text style={styles.logout}>Çıkış Yap</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <Text style={styles.dashboardTitle}>Dosyalarım</Text>
-        <Text style={styles.dashboardSubtitle}>
-          Şifrelenmiş dosyalarınızı buradan yönetin.
+        <View
+          style={[
+            styles.hero,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={styles.badge}>GÜVENLİ DOSYA YÖNETİMİ</Text>
+
+          <Text style={[styles.heroTitle, { color: colors.text }]}>
+            Dosyalarım
+          </Text>
+
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Şifrelenmiş dosyalarınızı güvenle yönetin ve paylaşın.
+          </Text>
+
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { backgroundColor: colors.primary },
+            ]}
+            onPress={handleUpload}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.buttonText}>＋ Dosya Yükle</Text>
+            )}
+          </TouchableOpacity>
+
+          {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!message && <Text style={styles.success}>{message}</Text>}
+        </View>
+
+        <Text style={[styles.filesTitle, { color: colors.text }]}>
+          Dosya kasanız
         </Text>
 
-        <TouchableOpacity
-          style={styles.uploadButton}
-          onPress={() => setUploadMessage('Dosya yükleme alanı sonraki adımda eklenecek.')}
-        >
-          <Text style={styles.buttonText}>+ Dosya Yükle</Text>
-        </TouchableOpacity>
+        {files.length === 0 ? (
+          <Text style={[styles.empty, { color: colors.muted }]}>
+            Henüz dosya bulunmuyor.
+          </Text>
+        ) : (
+          files.map((file) => (
+            <View
+              key={file.id}
+              style={[
+                styles.file,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={styles.fileIcon}>📄</Text>
 
-        {uploadMessage ? (
-          <Text style={styles.message}>{uploadMessage}</Text>
-        ) : null}
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fileName, { color: colors.text }]}>
+                  {file.original_name}
+                </Text>
 
-        <Text style={styles.sectionTitle}>Son dosyalar</Text>
+                <Text style={[styles.fileMeta, { color: colors.muted }]}>
+                  {formatSize(file.size_bytes)}
+                </Text>
+              </View>
 
-        {files.map((file) => (
-          <View style={styles.fileCard} key={file.name}>
-            <Text style={styles.fileIcon}>📄</Text>
-            <View style={styles.fileInfo}>
-              <Text style={styles.fileName}>{file.name}</Text>
-              <Text style={styles.fileMeta}>
-                {file.size} • {file.date}
-              </Text>
+              <Text style={styles.encrypted}>ŞİFRELİ</Text>
             </View>
-            <Text style={styles.moreIcon}>⋯</Text>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -156,138 +570,163 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0B1020',
   },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+  centerContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     padding: 24,
   },
-  authCard: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 520,
-    backgroundColor: '#111827',
-    borderRadius: 24,
+  dashboard: {
     padding: 24,
+    paddingBottom: 60,
   },
-  logo: {
-    color: '#38BDF8',
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 28,
-  },
-  title: {
-    color: '#F8FAFC',
-    fontSize: 30,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  subtitle: {
-    color: '#CBD5E1',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 26,
-  },
-  input: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    color: '#F8FAFC',
-    fontSize: 16,
-    marginBottom: 14,
-    padding: 16,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: '#0284C7',
-    borderRadius: 12,
-    marginTop: 8,
-    padding: 16,
-  },
-  uploadButton: {
-    alignItems: 'center',
-    backgroundColor: '#0284C7',
-    borderRadius: 12,
-    marginTop: 24,
-    padding: 16,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  message: {
-    color: '#86EFAC',
-    fontSize: 13,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  switchText: {
-    color: '#7DD3FC',
-    fontSize: 14,
-    marginTop: 22,
-    textAlign: 'center',
-  },
-  dashboardContainer: {
-    alignSelf: 'center',
-    padding: 24,
-    width: '100%',
-    maxWidth: 900,
+  card: {
+    width: "100%",
+    maxWidth: 840,
+    alignSelf: "center",
+    padding: 42,
+    borderRadius: 28,
+    borderWidth: 1,
   },
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
   },
-  logoutText: {
-    color: '#FCA5A5',
-    fontSize: 14,
+  logo: {
+    color: "#4d91ff",
+    fontSize: 28,
+    fontWeight: "900",
   },
-  dashboardTitle: {
-    color: '#F8FAFC',
-    fontSize: 32,
-    fontWeight: '700',
-    marginTop: 24,
+  modeButton: {
+    paddingVertical: 11,
+    paddingHorizontal: 15,
+    borderRadius: 22,
+    borderWidth: 1,
   },
-  dashboardSubtitle: {
-    color: '#CBD5E1',
-    fontSize: 15,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    color: '#F8FAFC',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 14,
+  badge: {
+    alignSelf: "flex-start",
     marginTop: 32,
+    color: "#a8d4ff",
+    backgroundColor: "#1b356d",
+    paddingVertical: 9,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    fontSize: 12,
+    fontWeight: "900",
   },
-  fileCard: {
-    alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    flexDirection: 'row',
+  title: {
+    marginTop: 38,
+    fontSize: 40,
+    fontWeight: "900",
+  },
+  subtitle: {
+    marginTop: 14,
+    fontSize: 18,
+    lineHeight: 28,
+  },
+  label: {
+    marginTop: 24,
+    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  input: {
+    minHeight: 58,
+    borderRadius: 17,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    fontSize: 17,
+  },
+  primaryButton: {
+    minHeight: 60,
+    marginTop: 28,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontSize: 19,
+    fontWeight: "900",
+  },
+  switchText: {
+    alignSelf: "center",
+    marginTop: 24,
+    fontWeight: "800",
+  },
+  error: {
+    marginTop: 12,
+    color: "#ff7c8e",
+    fontWeight: "700",
+  },
+  success: {
+    marginTop: 12,
+    color: "#55d89a",
+    fontWeight: "700",
+  },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  logout: {
+    color: "#ff9cad",
+    fontWeight: "800",
+  },
+  hero: {
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
+    padding: 32,
+    borderRadius: 26,
+    borderWidth: 1,
+  },
+  heroTitle: {
+    marginTop: 14,
+    fontSize: 44,
+    fontWeight: "900",
+  },
+  filesTitle: {
+    maxWidth: 1040,
+    width: "100%",
+    alignSelf: "center",
+    marginTop: 34,
+    marginBottom: 14,
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  empty: {
+    alignSelf: "center",
+    marginTop: 18,
+  },
+  file: {
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
+    minHeight: 78,
     marginBottom: 12,
     padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
   },
   fileIcon: {
-    fontSize: 25,
-    marginRight: 14,
-  },
-  fileInfo: {
-    flex: 1,
+    fontSize: 28,
   },
   fileName: {
-    color: '#F8FAFC',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "900",
   },
   fileMeta: {
-    color: '#94A3B8',
-    fontSize: 13,
     marginTop: 5,
   },
-  moreIcon: {
-    color: '#CBD5E1',
-    fontSize: 24,
+  encrypted: {
+    color: "#55d89a",
+    fontSize: 11,
+    fontWeight: "900",
   },
 });

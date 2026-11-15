@@ -9,9 +9,19 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE folders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_folder_id UUID REFERENCES folders(id) ON DELETE CASCADE,
+    name TEXT NOT NULL CHECK (btrim(name) <> ''),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    folder_id UUID REFERENCES folders(id) ON DELETE SET NULL,
     original_name TEXT NOT NULL,
     object_key TEXT NOT NULL UNIQUE,
     mime_type TEXT,
@@ -49,8 +59,22 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX unique_root_folder_name
+    ON folders(owner_id, name)
+    WHERE parent_folder_id IS NULL;
+
+CREATE UNIQUE INDEX unique_child_folder_name
+    ON folders(owner_id, parent_folder_id, name)
+    WHERE parent_folder_id IS NOT NULL;
+
+CREATE INDEX idx_folders_owner_parent
+    ON folders(owner_id, parent_folder_id);
+
 CREATE INDEX idx_files_owner_id
     ON files(owner_id);
+
+CREATE INDEX idx_files_folder_id
+    ON files(folder_id);
 
 CREATE INDEX idx_file_permissions_user_id
     ON file_permissions(user_id);
