@@ -34,24 +34,24 @@ Bu hafta dosya paylaşım izinlerinin süreli olarak yönetilmesi, indirme işle
 
 ## Büşra’nın Görevleri — Backend ve Web Uygulaması
 
-- [ ] Dosya paylaşım izni verilirken son geçerlilik tarihi seçilebilmesi sağlanacak.
-- [ ] Süresi geçmiş izinler dosya listeleme ve indirme işlemlerinde geçersiz kabul edilecek.
-- [ ] Dosya izinlerini görüntüleme endpoint’i tamamlanacak.
-- [ ] Dosya sahibinin verdiği izinleri güncelleyebilmesi veya kaldırabilmesi sağlanacak.
-- [ ] Dosya silme endpoint’i eklenecek.
-- [ ] Dosya silindiğinde PostgreSQL metadata kaydı ve MinIO nesnesi birlikte kaldırılacak.
-- [ ] Web arayüzüne dosya indirme, izin süresi görüntüleme ve izin kaldırma kontrolleri eklenecek.
-- [ ] Dosya sahibi dışındaki kullanıcıların dosyayı silmesi engellenecek.
+- [x] Dosya paylaşım izni verilirken son geçerlilik tarihi seçilebilmesi sağlanacak.
+- [x] Süresi geçmiş izinler dosya listeleme ve indirme işlemlerinde geçersiz kabul edilecek.
+- [x] Dosya izinlerini görüntüleme endpoint’i tamamlanacak.
+- [x] Dosya sahibinin verdiği izinleri güncelleyebilmesi veya kaldırabilmesi sağlanacak.
+- [x] Dosya silme endpoint’i eklenecek.
+- [x] Dosya silindiğinde PostgreSQL metadata kaydı ve MinIO nesnesi birlikte kaldırılacak.
+- [x] Web arayüzüne dosya indirme, izin süresi görüntüleme ve izin kaldırma kontrolleri eklenecek.
+- [x] Dosya sahibi dışındaki kullanıcıların dosyayı silmesi engellenecek.
 
 ### Web — Büşra
 
-- [ ] Dosya detay ekranı
-- [ ] Dosya indirme butonu
-- [ ] Dosya paylaşma penceresi
-- [ ] Kullanıcı seçme alanı
-- [ ] Okuma/indirme izni verme alanı
-- [ ] Yetki süresi seçme alanı
-- [ ] Verilmiş izinleri listeleme ve kaldırma alanı
+- [x] Dosya detay ekranı
+- [x] Dosya indirme butonu
+- [x] Dosya paylaşma penceresi
+- [x] Kullanıcı seçme alanı
+- [x] Okuma/indirme izni verme alanı
+- [x] Yetki süresi seçme alanı
+- [x] Verilmiş izinleri listeleme ve kaldırma alanı
 
 ## Hava’nın Görevleri — Audit Log ve Güvenlik Testleri
 
@@ -65,21 +65,21 @@ Bu hafta dosya paylaşım izinlerinin süreli olarak yönetilmesi, indirme işle
 
 ## Genel Kabul Kriterleri
 
-- [ ] Dosya sahibi kayıtlı kullanıcıya süreli erişim izni verebilir.
-- [ ] İzin süresi geçtikten sonra dosya listeleme ve indirme engellenir.
-- [ ] Dosya sahibi verdiği izni kaldırabilir.
-- [ ] Yetkili kullanıcı dosyayı web veya mobil uygulamadan indirebilir.
-- [ ] Yetkisi kaldırılan kullanıcı dosyaya tekrar erişemez.
-- [ ] Dosya yalnızca sahibi tarafından silinebilir.
-- [ ] Dosya silindiğinde MinIO’daki şifreli nesne de kaldırılır.
+- [x] Dosya sahibi kayıtlı kullanıcıya süreli erişim izni verebilir.
+- [x] İzin süresi geçtikten sonra dosya listeleme ve indirme engellenir.
+- [x] Dosya sahibi verdiği izni kaldırabilir.
+- [x] Yetkili kullanıcı dosyayı web veya mobil uygulamadan indirebilir.
+- [x] Yetkisi kaldırılan kullanıcı dosyaya tekrar erişemez.
+- [x] Dosya yalnızca sahibi tarafından silinebilir.
+- [x] Dosya silindiğinde MinIO’daki şifreli nesne de kaldırılır.
 - [ ] Kritik dosya işlemleri audit log’da görünür.
 - [ ] Audit log’da gizli bilgi veya dosya içeriği bulunmaz.
 
 ## Hafta Sonu Çıktıları
 
-- [ ] Süreli dosya paylaşım ve yetki kaldırma akışı.
-- [ ] Web ve mobil uygulamada dosya indirme desteği.
-- [ ] Dosya silme işlemi.
+- [x] Süreli dosya paylaşım ve yetki kaldırma akışı.
+- [x] Web ve mobil uygulamada dosya indirme desteği.
+- [x] Dosya silme işlemi.
 - [ ] Audit log kayıtlarının oluşturulması.
 - [ ] Yetki süresi, silme ve audit log test ekran görüntüleri.
 - [ ] 7. hafta rapor notları.
