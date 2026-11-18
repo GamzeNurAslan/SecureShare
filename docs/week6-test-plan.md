@@ -8,24 +8,24 @@ Bu hafta SecureShare’in web ve mobil istemcilerinin gerçek REST API ile çal�
 
 ## Gamze’nin Görevleri — Mobil Uygulama
 
-- [ ] Mobil uygulamadaki demo giriş ekranı gerçek `/api/auth/login` endpoint’ine bağlanacak.
-- [ ] Kayıt ekranı `/api/auth/register` endpoint’ine bağlanacak.
-- [ ] Başarılı girişte alınan JWT güvenli biçimde cihazda saklanacak.
-- [ ] Çıkış işleminde token cihazdan silinecek ve giriş ekranına dönülecek.
-- [ ] Dashboard’daki sabit örnek dosya listesi kaldırılacak.
-- [ ] Dosya listesi `/api/files` endpoint’inden alınarak gösterilecek.
-- [ ] `expo-document-picker` ile cihazdan dosya seçme işlemi eklenecek.
-- [ ] Seçilen dosya JWT ile `/api/files` endpoint’ine yüklenecek.
-- [ ] Yükleme, listeleme ve giriş işlemlerinde yükleniyor, başarılı ve hata durumları kullanıcıya gösterilecek.
-- [ ] Telefon üzerinden test yapılacaksa `localhost` yerine bilgisayarın yerel IP adresi kullanılacak.
+- [x] Mobil uygulamadaki demo giriş ekranı gerçek `/api/auth/login` endpoint’ine bağlanacak.
+- [x] Kayıt ekranı `/api/auth/register` endpoint’ine bağlanacak.
+- [x] Başarılı girişte alınan JWT güvenli biçimde cihazda saklanacak.
+- [x] Çıkış işleminde token cihazdan silinecek ve giriş ekranına dönülecek.
+- [x] Dashboard’daki sabit örnek dosya listesi kaldırılacak.
+- [x] Dosya listesi `/api/files` endpoint’inden alınarak gösterilecek.
+- [x] `expo-document-picker` ile cihazdan dosya seçme işlemi eklenecek.
+- [x] Seçilen dosya JWT ile `/api/files` endpoint’ine yüklenecek.
+- [x] Yükleme, listeleme ve giriş işlemlerinde yükleniyor, başarılı ve hata durumları kullanıcıya gösterilecek.
+- [x] Telefon üzerinden test yapılacaksa `localhost` yerine bilgisayarın yerel IP adresi kullanılacak.
 
 ### Mobil — Gamze
 
-- [ ] Giriş ekranını gerçek API’ye bağlama
-- [ ] Kayıt ekranını gerçek API’ye bağlama
-- [ ] Dashboard’daki örnek dosyaları gerçek API listesinden gösterme
-- [ ] Dosya yükleme butonu ve dosya seçme ekranı
-- [ ] Yükleniyor, başarılı ve hata mesajları
+- [x] Giriş ekranını gerçek API’ye bağlama
+- [x] Kayıt ekranını gerçek API’ye bağlama
+- [x] Dashboard’daki örnek dosyaları gerçek API listesinden gösterme
+- [x] Dosya yükleme butonu ve dosya seçme ekranı
+- [x] Yükleniyor, başarılı ve hata mesajları
 
 
 ## Büşra’nın Görevleri — Web Uygulaması
