@@ -17,12 +17,22 @@ function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         setError("");
+
+        if (!email.trim() || !password) {
+            setError("E-posta ve parola alanları zorunludur.");
+            return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            setError("Geçerli bir e-posta adresi girin.");
+            return;
+        }
+
         setLoading(true);
 
         try {
-            await login(email, password);
+            await login(email.trim(), password);
             navigate("/dashboard");
         } catch (err) {
             setError(getApiErrorMessage(err));

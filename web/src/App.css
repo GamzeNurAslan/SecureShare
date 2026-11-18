@@ -2125,4 +2125,91 @@ input:focus {
     background: #edf3fc;
   }
 
+  /* Tablet uyumluluğu */
+  @media (min-width: 601px) and (max-width: 1024px) {
+
+    .dashboard-header,
+    .dashboard-content {
+      width: calc(100% - 48px);
+    }
+
+    .file-card {
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .file-info {
+      min-width: 180px;
+      flex: 1;
+    }
+
+    .file-card-controls {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .file-actions {
+      flex-wrap: wrap;
+    }
+
+    .auth-card {
+      max-width: 540px;
+    }
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 3px;
+  }
+
+  input {
+    max-width: 100%;
+  }
+
+  .error-message {
+    padding: 10px 13px;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 10px;
+    background: rgba(127, 29, 29, 0.16);
+    color: #fca5a5;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .success-message {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Küçük ekranlarda taşmayı önle */
+  @media (max-width: 600px) {
+
+    .auth-container,
+    .dashboard {
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    .auth-card {
+      width: 100%;
+      padding: 24px 18px;
+    }
+
+    .file-info h3 {
+      overflow-wrap: anywhere;
+    }
+
+    .file-actions {
+      flex-wrap: wrap;
+    }
+
+    .file-actions button {
+      min-height: 42px;
+    }
+  }
 }

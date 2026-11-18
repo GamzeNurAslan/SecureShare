@@ -11,6 +11,29 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
         const selectedFile = event.target.files?.[0];
 
         if (!selectedFile) return;
+        const allowedExtensions = [
+            "pdf", "png", "jpg", "jpeg", "txt", "docx", "xlsx"
+        ];
+
+        const extension = selectedFile.name.split(".").pop().toLowerCase();
+
+        if (!allowedExtensions.includes(extension)) {
+            setError("Bu dosya türü desteklenmiyor.");
+            event.target.value = "";
+            return;
+        }
+
+        if (selectedFile.size === 0) {
+            setError("Boş dosya yüklenemez.");
+            event.target.value = "";
+            return;
+        }
+
+        if (selectedFile.size > 50 * 1024 * 1024) {
+            setError("Dosya boyutu 50 MB sınırını aşamaz.");
+            event.target.value = "";
+            return;
+        }
 
         try {
             setLoading(true);
@@ -44,6 +67,7 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
                 ref={fileInputRef}
                 className="hidden-file-input"
                 type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.txt,.docx,.xlsx"
                 onChange={handleFileChange}
             />
 
