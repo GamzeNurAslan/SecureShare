@@ -1274,7 +1274,7 @@ input:focus {
   font-size: 13px;
 }
 
-.share-container > h3,
+.share-container>h3,
 .permission-list h3 {
   margin: 0 0 10px;
   color: #f8fafc;
@@ -1291,7 +1291,7 @@ input:focus {
   font-weight: 600;
 }
 
-.share-form > input {
+.share-form>input {
   min-height: 44px;
   padding: 10px 12px;
   border-color: #334b77;
@@ -1494,7 +1494,7 @@ input:focus {
   font-weight: 650;
 }
 
-.share-overlay .share-form > input {
+.share-overlay .share-form>input {
   min-height: 44px;
   color: #edf5ff;
   background: #0c1730;
@@ -1502,7 +1502,7 @@ input:focus {
   border-radius: 11px;
 }
 
-.share-overlay .share-form > input:focus {
+.share-overlay .share-form>input:focus {
   border-color: #5e9bff;
   box-shadow: 0 0 0 3px rgba(72, 137, 255, 0.16);
   outline: none;
@@ -1584,7 +1584,7 @@ input:focus {
   color: #a8bbdc;
 }
 
-.permission-empty-state > span {
+.permission-empty-state>span {
   display: grid;
   width: 40px;
   height: 40px;
@@ -1673,7 +1673,7 @@ input:focus {
   border-color: #bed1ee;
 }
 
-.dashboard-light-mode .share-overlay .share-form > input {
+.dashboard-light-mode .share-overlay .share-form>input {
   color: #16233b;
   background: #f7faff;
   border-color: #9fbee9;
@@ -1730,6 +1730,7 @@ input:focus {
 ========================= */
 
 @media (max-width: 600px) {
+
   .dashboard-header,
   .dashboard-content {
     width: min(100% - 32px, 1308px);
@@ -1882,4 +1883,246 @@ input:focus {
   .share-header {
     align-items: flex-start;
   }
+
+
+  /* Genel modal arka planı */
+  .modal-overlay {
+    position: fixed;
+    z-index: 200;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(3, 8, 21, 0.8);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Silme onay penceresi */
+  .confirmation-modal {
+    width: min(100%, 440px);
+    padding: 28px;
+    color: #f8fafc;
+    background: #111a31;
+    border: 1px solid #35558d;
+    border-radius: 18px;
+  }
+
+  .confirmation-modal h3 {
+    margin-bottom: 16px;
+  }
+
+  .confirmation-modal p {
+    margin: 10px 0;
+    color: #aebed8;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .modal-actions button {
+    padding: 11px 16px;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  .cancel-button {
+    color: #dbeafe;
+    background: #334155;
+  }
+
+  .confirm-delete-button {
+    color: white;
+    background: #dc2626;
+  }
+
+  .modal-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* İşlem geçmişi */
+  .history-modal {
+    width: min(100%, 760px);
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 25px;
+    color: #f8fafc;
+    background: #111a31;
+    border: 1px solid #35558d;
+    border-radius: 20px;
+  }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 24px;
+  }
+
+  .history-header p {
+    color: #58c9ff;
+    font-size: 11px;
+    font-weight: bold;
+  }
+
+  .history-header h2 {
+    margin: 7px 0;
+  }
+
+  .history-header span {
+    color: #9db2d3;
+    overflow-wrap: anywhere;
+  }
+
+  .history-header button {
+    padding: 9px 14px;
+    color: white;
+    background: #294575;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .history-entry {
+    padding: 17px;
+    margin-bottom: 12px;
+    border: 1px solid #334b77;
+    border-radius: 12px;
+    background: #0d1730;
+  }
+
+  .history-entry-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .history-entry-heading strong {
+    color: #93c5fd;
+    overflow-wrap: anywhere;
+  }
+
+  .history-entry-heading span {
+    color: #86efac;
+  }
+
+  .history-entry p {
+    margin: 8px 0;
+    color: #b7c7e1;
+    font-size: 13px;
+  }
+
+  .history-entry details {
+    margin-top: 13px;
+    padding-top: 10px;
+    border-top: 1px solid #334b77;
+  }
+
+  .history-entry summary {
+    color: #93c5fd;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .history-entry pre {
+    margin-top: 10px;
+    padding: 12px;
+    overflow-x: auto;
+    color: #cbd5e1;
+    background: #080f20;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .history-entry code {
+    display: block;
+    margin: 7px 0;
+    padding: 9px;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+    color: #86efac;
+    background: #080f20;
+    border-radius: 7px;
+    font-size: 11px;
+  }
+
+  /* Bağlantı ve sunucu hatası ekranları */
+  .api-error-screen {
+    display: grid;
+    min-height: 350px;
+    padding: 35px 20px;
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+    background: #111a31;
+    border: 1px solid #334b77;
+    border-radius: 18px;
+  }
+
+  .api-error-icon {
+    display: grid;
+    width: 65px;
+    height: 65px;
+    margin-bottom: 18px;
+    place-items: center;
+    color: #fca5a5;
+    background: #4c202d;
+    border-radius: 50%;
+    font-size: 32px;
+  }
+
+  .api-error-screen h2 {
+    color: #f8fafc;
+  }
+
+  .api-error-screen p {
+    max-width: 440px;
+    margin: 12px 0 20px;
+    color: #aebed8;
+    line-height: 1.6;
+  }
+
+  .api-error-screen button {
+    padding: 12px 20px;
+    color: white;
+    background: #2563eb;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  .dashboard-light-mode .confirmation-modal,
+  .dashboard-light-mode .history-modal,
+  .dashboard-light-mode .api-error-screen {
+    color: #16233b;
+    background: #f8fbff;
+    border-color: #bed1ee;
+  }
+
+  .dashboard-light-mode .confirmation-modal p,
+  .dashboard-light-mode .history-header span,
+  .dashboard-light-mode .history-entry p,
+  .dashboard-light-mode .api-error-screen p {
+    color: #587196;
+  }
+
+  .dashboard-light-mode .history-entry {
+    background: white;
+    border-color: #bed1ee;
+  }
+
+  .dashboard-light-mode .history-entry pre,
+  .dashboard-light-mode .history-entry code {
+    background: #edf3fc;
+  }
+
 }

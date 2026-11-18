@@ -76,6 +76,11 @@ export const fileAPI = {
     getPermissions: (fileId) =>
         api.get(`/api/files/${fileId}/permissions`),
 
+    getHistory: (fileId, params = {}) =>
+        api.get(`/api/files/${fileId}/history`, {
+            params,
+        }),
+
     grantPermission: (fileId, permissionData) =>
         api.post(`/api/files/${fileId}/permissions`, permissionData),
 

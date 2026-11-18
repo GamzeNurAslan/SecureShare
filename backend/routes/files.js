@@ -71,14 +71,118 @@ async function findOwnedFile(db, fileId, ownerId) {
     return result.rows[0] || null;
 }
 
+function isDatabaseConnectionError(error) {
+    const connectionCodes = [
+        "ECONNREFUSED",
+        "ECONNRESET",
+        "ETIMEDOUT",
+        "EHOSTUNREACH",
+        "ENETUNREACH",
+        "08000",
+        "08003",
+        "08006",
+        "08001",
+        "57P01",
+        "57P02",
+        "57P03",
+        "53300",
+    ];
+
+    const code = error?.code || error?.cause?.code;
+
+    return (
+        connectionCodes.includes(code) ||
+        error?.name === "ConnectionError"
+    );
+}
+
+function isMinioConnectionError(error) {
+    const connectionCodes = [
+        "ECONNREFUSED",
+        "ECONNRESET",
+        "ETIMEDOUT",
+        "ENOTFOUND",
+        "EAI_AGAIN",
+        "EHOSTUNREACH",
+        "ENETUNREACH",
+    ];
+
+    const code = error?.code || error?.cause?.code;
+    const statusCode = error?.statusCode || error?.cause?.statusCode;
+
+    return (
+        connectionCodes.includes(code) ||
+        [502, 503, 504].includes(statusCode)
+    );
+}
+
+
+function isMinioConnectionError(error) {
+    const connectionCodes = [
+        "ECONNREFUSED",
+        "ECONNRESET",
+        "ETIMEDOUT",
+        "ENOTFOUND",
+        "EAI_AGAIN",
+        "EHOSTUNREACH",
+        "ENETUNREACH",
+    ];
+
+    const code = error?.code || error?.cause?.code;
+    const statusCode = error?.statusCode || error?.cause?.statusCode;
+
+    return (
+        connectionCodes.includes(code) ||
+        [502, 503, 504].includes(statusCode)
+    );
+}
+
+function sendOperationError(res, error, operation) {
+    // Teknik detayları sadece sunucu loglarında tut.
+    console.error(`${operation} hatası:`, {
+        message: error?.message,
+        code: error?.code,
+        statusCode: error?.statusCode,
+    });
+
+    if (isDatabaseConnectionError(error)) {
+        return res.status(503).json({
+            error: "Veritabanı hizmetine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.",
+            code: "DATABASE_UNAVAILABLE",
+        });
+    }
+
+    if (isMinioConnectionError(error)) {
+        return res.status(503).json({
+            error: "Dosya depolama hizmetine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.",
+            code: "STORAGE_UNAVAILABLE",
+        });
+    }
+
+    return res.status(500).json({
+        error: `${operation} işlemi sırasında sunucu hatası oluştu.`,
+        code: "INTERNAL_ERROR",
+    });
+}
+
+// POST /api/files
+
 // POST /api/files
 router.post("/", upload.single("file"), async (req, res) => {
     const db = req.app.locals.db;
     const storage = req.app.locals.storage;
 
+    if (!db) {
+        return res.status(503).json({
+            error: "Veritabanı bağlantısı hazır değil.",
+            code: "DATABASE_UNAVAILABLE",
+        });
+    }
+
     if (!storage) {
         return res.status(503).json({
             error: "MinIO bağlantısı hazır değil.",
+            code: "STORAGE_UNAVAILABLE",
         });
     }
 
@@ -92,17 +196,28 @@ router.post("/", upload.single("file"), async (req, res) => {
     const objectKey = `files/${fileId}`;
     const aad = Buffer.from(`${fileId}:${req.user.id}`);
 
+    let objectUploadAttempted = false;
+    let metadataInsertAttempted = false;
+
     try {
+        // 1. Dosyayı şifrele.
         const encrypted = encryptFile(
             req.file.buffer,
             loadKek(),
             aad
         );
 
+        // 2. Şifreli dosyayı MinIO'ya yükle.
+        // İşlem başarısız olsa bile kısmi nesneyi temizlemeyi deneyeceğiz.
+        objectUploadAttempted = true;
+
         await storage.put(
             objectKey,
             encrypted.encryptedData
         );
+
+        // 3. Dosya metadata bilgilerini veritabanına kaydet.
+        metadataInsertAttempted = true;
 
         const result = await db.query(
             `INSERT INTO files (
@@ -133,23 +248,80 @@ router.post("/", upload.single("file"), async (req, res) => {
             ]
         );
 
+        // 4. Başarılı yükleme işlemini audit log'a kaydet.
+        await writeAuditLog({
+            db,
+            actorUserId: req.user.id,
+            fileId,
+            action: "FILE_UPLOADED",
+            result: "SUCCESS",
+            details: {
+                originalName: req.file.originalname,
+                sizeBytes: req.file.size,
+                mimeType: req.file.mimetype,
+            },
+        });
+
         return res.status(201).json({
             message: "Dosya başarıyla yüklendi.",
             file: result.rows[0],
         });
+
     } catch (error) {
-        await storage.remove(objectKey).catch(() => {});
 
         console.error(
             "Dosya yükleme hatası:",
             error.message
         );
 
-        return res.status(500).json({
-            error: "Dosya yüklenemedi.",
-        });
+        // 5. Yükleme başarısızsa metadata kaydını temizle.
+        // INSERT işleminin sonucu belirsiz olsa bile fileId ile
+        // kayıt olup olmadığını kontrol ederek silmeyi deneriz.
+        if (metadataInsertAttempted) {
+            try {
+                await db.query(
+                    `DELETE FROM files
+                     WHERE id = $1 AND owner_id = $2`,
+                    [fileId, req.user.id]
+                );
+
+                console.log(
+                    "Başarısız yüklemeye ait metadata temizlendi."
+                );
+
+            } catch (cleanupError) {
+                console.error(
+                    "Metadata temizleme hatası:",
+                    cleanupError.message
+                );
+            }
+        }
+
+        // 6. MinIO nesnesini temizle.
+        if (objectUploadAttempted) {
+            try {
+                await storage.remove(objectKey);
+
+                console.log(
+                    "Başarısız yüklemeye ait MinIO nesnesi temizlendi."
+                );
+
+            } catch (cleanupError) {
+                console.error(
+                    "MinIO nesne temizleme hatası:",
+                    cleanupError.message
+                );
+            }
+        }
+
+        return sendOperationError(
+            res,
+            error,
+            "Dosya yükleme"
+        );
     }
 });
+
 
 // GET /api/files
 router.get("/", async (req, res) => {
@@ -184,16 +356,15 @@ router.get("/", async (req, res) => {
         return res.json({
             files: result.rows,
         });
-    } catch (error) {
-        console.error(
-            "Dosya listeleme hatası:",
-            error.message
-        );
-
-        return res.status(500).json({
-            error: "Dosyalar listelenemedi.",
-        });
     }
+    catch (error) {
+        return sendOperationError(
+            res,
+            error,
+            "Dosya listeleme"
+        );
+    }
+
 });
 
 // POST /api/files/:id/permissions
@@ -333,25 +504,21 @@ router.post("/:id/permissions", async (req, res) => {
             },
             permission: permissionResult.rows[0],
         });
-    } catch (error) {
-        console.error(
-            "Dosya paylaşım izni hatası:",
-            error.message
-        );
-
-        return res.status(500).json({
-            error: "Dosya paylaşım izni kaydedilemedi.",
-        });
     }
+    catch (error) {
+        return sendOperationError(
+            res,
+            error,
+            "Dosya paylaşım izni kaydetme"
+        );
+    }
+
 });
-// --------------------------------------------------
 // GET /api/files/users/search?q=email
 // Kayıtlı kullanıcı arama
-// --------------------------------------------------
 router.get("/users/search", async (req, res) => {
     const db = req.app.locals.db;
     const query = String(req.query.q || "").trim();
-
 
     if (query.length < 3) {
         return res.status(400).json({
@@ -374,14 +541,14 @@ router.get("/users/search", async (req, res) => {
             users: result.rows,
         });
     } catch (error) {
-        console.error("Kullanıcı arama hatası:", error.message);
-
-        return res.status(500).json({
-            error: "Kullanıcılar aranamadı.",
-        });
+        return sendOperationError(
+            res,
+            error,
+            "Kullanıcı arama"
+        );
     }
+
 });
-// --------------------------------------------------
 
 // GET /api/files/:id/permissions
 router.get("/:id/permissions", async (req, res) => {
@@ -427,16 +594,15 @@ router.get("/:id/permissions", async (req, res) => {
         return res.json({
             permissions: result.rows,
         });
-    } catch (error) {
-        console.error(
-            "İzin listeleme hatası:",
-            error.message
-        );
-
-        return res.status(500).json({
-            error: "Dosya izinleri listelenemedi.",
-        });
     }
+    catch (error) {
+        return sendOperationError(
+            res,
+            error,
+            "Dosya izinlerini listeleme"
+        );
+    }
+
 });
 
 // DELETE /api/files/:id/permissions/:userId
@@ -496,15 +662,240 @@ router.delete("/:id/permissions/:userId", async (req, res) => {
             message: "Dosya erişim izni kaldırıldı.",
             user_id: result.rows[0].user_id,
         });
-    } catch (error) {
-        console.error(
-            "İzin kaldırma hatası:",
-            error.message
+    }
+    catch (error) {
+        return sendOperationError(
+            res,
+            error,
+            "Dosya erişim izni kaldırma"
+        );
+    }
+
+});
+
+// DELETE /api/files/:id
+// Yalnızca dosya sahibi kendi dosyasını silebilir.
+router.delete("/:id", async (req, res) => {
+    const db = req.app.locals.db;
+    const storage = req.app.locals.storage;
+    const fileId = req.params.id;
+
+    if (!UUID_RE.test(fileId)) {
+        return res.status(400).json({
+            error: "Geçersiz dosya kimliği.",
+            code: "INVALID_FILE_ID",
+        });
+    }
+
+    if (!db) {
+        return res.status(503).json({
+            error: "Veritabanı bağlantısı hazır değil.",
+            code: "DATABASE_UNAVAILABLE",
+        });
+    }
+
+    if (!storage) {
+        return res.status(503).json({
+            error: "MinIO bağlantısı hazır değil.",
+            code: "STORAGE_UNAVAILABLE",
+        });
+    }
+
+    let client;
+    let backupData = null;
+    let objectRemovalAttempted = false;
+    let deletionCommitted = false;
+
+    try {
+        client = await db.connect();
+
+        await client.query("BEGIN");
+
+        // Dosyanın varlığını ve sahipliğini kontrol et.
+        const fileResult = await client.query(
+            `SELECT id, owner_id, original_name, object_key
+             FROM files
+             WHERE id = $1 AND owner_id = $2
+             FOR UPDATE`,
+            [fileId, req.user.id]
         );
 
-        return res.status(500).json({
-            error: "Dosya erişim izni kaldırılamadı.",
+        if (fileResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+
+            return res.status(404).json({
+                error: "Dosya bulunamadı veya silme yetkiniz yok.",
+                code: "FILE_NOT_FOUND",
+            });
+        }
+
+        const file = fileResult.rows[0];
+
+        // Silme öncesinde şifreli nesnenin yedeğini al.
+        backupData = await storage.get(file.object_key);
+
+        // Önce MinIO nesnesini sil.
+        objectRemovalAttempted = true;
+
+        await storage.remove(file.object_key);
+
+        // Dosyanın paylaşım izinlerini sil.
+        await client.query(
+            `DELETE FROM file_permissions
+             WHERE file_id = $1`,
+            [fileId]
+        );
+
+        // Dosyanın metadata kaydını sil.
+        const deleteResult = await client.query(
+            `DELETE FROM files
+             WHERE id = $1 AND owner_id = $2
+             RETURNING id`,
+            [fileId, req.user.id]
+        );
+
+        if (deleteResult.rows.length === 0) {
+            throw new Error("Dosya metadata kaydı silinemedi.");
+        }
+
+        await client.query("COMMIT");
+        deletionCommitted = true;
+
+        // Dosya silindiği için audit kaydında fileId null tutulur.
+        // Silinen dosyanın kimliği details içerisinde korunur.
+        let auditLogRecorded = true;
+
+        try {
+            await writeAuditLog({
+                db,
+                actorUserId: req.user.id,
+                fileId: null,
+                action: "FILE_DELETED",
+                result: "SUCCESS",
+                details: {
+                    deletedFileId: file.id,
+                    originalName: file.original_name,
+                },
+            });
+        } catch (auditError) {
+            auditLogRecorded = false;
+
+            console.error(
+                "Dosya silme audit log hatası:",
+                auditError.message
+            );
+        }
+
+        return res.status(200).json({
+            message: "Dosya başarıyla silindi.",
+            fileId: file.id,
+            auditLogRecorded,
         });
+
+    } catch (error) {
+
+        if (client && !deletionCommitted) {
+            await client.query("ROLLBACK").catch(() => { });
+        }
+
+        // Veritabanı işlemi başarısızsa MinIO nesnesini geri yüklemeyi dene.
+        if (objectRemovalAttempted && backupData && !deletionCommitted) {
+            try {
+                await storage.put(
+                    (await db.query(
+                        `SELECT object_key
+                         FROM files
+                         WHERE id = $1 AND owner_id = $2`,
+                        [fileId, req.user.id]
+                    )).rows[0]?.object_key,
+                    backupData
+                );
+            } catch (restoreError) {
+                console.error(
+                    "MinIO nesnesini geri yükleme hatası:",
+                    restoreError.message
+                );
+            }
+        }
+
+        return sendOperationError(
+            res,
+            error,
+            "Dosya silme"
+        );
+
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
+// GET /api/files/:id/history
+// Yalnızca dosyanın sahibi kendi dosyasının işlem geçmişini görebilir.
+router.get("/:id/history", async (req, res) => {
+    const db = req.app.locals.db;
+    const fileId = req.params.id;
+
+    if (!UUID_RE.test(fileId)) {
+        return res.status(400).json({
+            error: "Geçersiz dosya kimliği.",
+        });
+    }
+
+    const limit = Math.min(
+        Math.max(Number.parseInt(req.query.limit, 10) || 20, 1),
+        100
+    );
+
+    const offset = Math.max(
+        Number.parseInt(req.query.offset, 10) || 0,
+        0
+    );
+
+    try {
+        const file = await findOwnedFile(
+            db,
+            fileId,
+            req.user.id
+        );
+
+        if (!file) {
+            return res.status(404).json({
+                error: "Dosya bulunamadı veya geçmişini görüntüleme yetkiniz yok.",
+            });
+        }
+
+        const result = await db.query(
+            `SELECT
+                a.id,
+                a.actor_user_id,
+                u.email AS actor_email,
+                a.action,
+                a.result,
+                a.details,
+                a.previous_hash,
+                a.entry_hash,
+                a.created_at
+             FROM audit_logs a
+             LEFT JOIN users u ON u.id = a.actor_user_id
+             WHERE a.file_id = $1
+             ORDER BY a.id DESC
+             LIMIT $2 OFFSET $3`,
+            [fileId, limit, offset]
+        );
+
+        return res.json({
+            history: result.rows,
+            limit,
+            offset,
+        });
+    } catch (error) {
+        return sendOperationError(
+            res,
+            error,
+            "Dosya geçmişi getirme"
+        );
     }
 });
 
@@ -565,7 +956,9 @@ router.get("/:id/view", async (req, res) => {
         }
 
         const file = result.rows[0];
+
         const encryptedData = await storage.get(file.object_key);
+
         const plainData = decryptFile(
             {
                 encryptedData,
@@ -592,236 +985,20 @@ router.get("/:id/view", async (req, res) => {
             "Content-Type",
             file.mime_type || "application/octet-stream"
         );
+
         res.setHeader(
             "Content-Disposition",
             `inline; filename*=UTF-8''${encodeURIComponent(file.original_name)}`
         );
 
         return res.send(plainData);
-    } catch (error) {
-        console.error("Dosya görüntüleme hatası:", error.message);
-
-        return res.status(500).json({
-            error: "Dosya görüntülenemedi.",
-        });
     }
+    catch (error) {
+        return sendOperationError(
+            res,
+            error,
+            "Dosya görüntüleme"
+        );
+    }
+
 });
-
-// GET /api/files/:id
-router.get("/:id", async (req, res) => {
-    const db = req.app.locals.db;
-    const storage = req.app.locals.storage;
-
-    if (!UUID_RE.test(req.params.id)) {
-        return res.status(400).json({
-            error: "Geçersiz dosya kimliği.",
-        });
-    }
-
-    if (!storage) {
-        return res.status(503).json({
-            error: "MinIO bağlantısı hazır değil.",
-        });
-    }
-
-    try {
-        const result = await db.query(
-            `SELECT f.*
-             FROM files f
-             LEFT JOIN file_permissions p
-                ON p.file_id = f.id
-                AND p.user_id = $2
-                AND (
-                    p.expires_at IS NULL
-                    OR p.expires_at > NOW()
-                )
-             WHERE f.id = $1
-                AND (
-                    f.owner_id = $2
-                    OR p.can_download = TRUE
-                )`,
-            [
-                req.params.id,
-                req.user.id,
-            ]
-        );
-
-        if (result.rows.length === 0) {
-            await writeAuditLog({
-                db,
-                actorUserId: req.user.id,
-                fileId: null,
-                action: "FILE_ACCESS_DENIED",
-                result: "DENIED",
-                details: {
-                    requestedFileId: req.params.id,
-                    reason:
-                        "file_not_found_or_download_permission_missing",
-                },
-            });
-
-            return res.status(404).json({
-                error:
-                    "Dosya bulunamadı veya indirme yetkiniz yok.",
-            });
-        }
-
-        const file = result.rows[0];
-
-        const encryptedData = await storage.get(
-            file.object_key
-        );
-
-        const plainData = decryptFile(
-            {
-                encryptedData,
-                encryptedDek: file.encrypted_dek,
-                nonce: file.nonce,
-                aad: file.aad,
-            },
-            loadKek()
-        );
-
-        await writeAuditLog({
-            db,
-            actorUserId: req.user.id,
-            fileId: req.params.id,
-            action: "FILE_DOWNLOADED",
-            result: "SUCCESS",
-            details: {
-                originalName: file.original_name,
-                sizeBytes: Number(file.size_bytes),
-            },
-        });
-
-        res.setHeader(
-            "Content-Type",
-            file.mime_type ||
-                "application/octet-stream"
-        );
-
-        res.setHeader(
-            "Content-Disposition",
-            `attachment; filename*=UTF-8''${encodeURIComponent(
-                file.original_name
-            )}`
-        );
-
-        return res.send(plainData);
-    } catch (error) {
-        console.error(
-            "Dosya indirme hatası:",
-            error.message
-        );
-
-        return res.status(500).json({
-            error: "Dosya indirilemedi.",
-        });
-    }
-});
-// DELETE /api/files/:id
-// Yalnızca dosya sahibi dosyayı silebilir.
-router.delete("/:id", async (req, res) => {
-    const db = req.app.locals.db;
-    const storage = req.app.locals.storage;
-    const fileId = req.params.id;
-
-    if (!UUID_RE.test(fileId)) {
-        return res.status(400).json({
-            error: "Geçersiz dosya kimliği.",
-        });
-    }
-
-    if (!storage) {
-        return res.status(503).json({
-            error: "MinIO bağlantısı hazır değil.",
-        });
-    }
-
-    let client;
-    let transactionStarted = false;
-    let objectKey = null;
-    let encryptedBackup = null;
-    let objectRemoved = false;
-
-    try {
-        client = await db.connect();
-
-        await client.query("BEGIN");
-        transactionStarted = true;
-
-        // Dosyanın varlığını ve sahibini kontrol et.
-        const result = await client.query(
-            `SELECT id, object_key
-             FROM files
-             WHERE id = $1 AND owner_id = $2
-             FOR UPDATE`,
-            [fileId, req.user.id]
-        );
-
-        if (result.rows.length === 0) {
-            await client.query("ROLLBACK");
-            transactionStarted = false;
-
-            return res.status(404).json({
-                error: "Dosya bulunamadı veya silme yetkiniz yok.",
-            });
-        }
-
-        objectKey = result.rows[0].object_key;
-
-        // Silme başarısız olursa geri yüklemek için şifreli yedeği al.
-        encryptedBackup = await storage.get(objectKey);
-
-        // Önce MinIO nesnesini sil.
-        await storage.remove(objectKey);
-        objectRemoved = true;
-
-        // PostgreSQL metadata kaydını sil.
-        // file_permissions kayıtları ON DELETE CASCADE ile silinir.
-        await client.query(
-            `DELETE FROM files
-             WHERE id = $1 AND owner_id = $2`,
-            [fileId, req.user.id]
-        );
-
-        await client.query("COMMIT");
-        transactionStarted = false;
-
-        return res.json({
-            message: "Dosya başarıyla silindi.",
-            file_id: fileId,
-        });
-
-    } catch (error) {
-        if (transactionStarted && client) {
-            await client.query("ROLLBACK").catch(() => { });
-        }
-
-        // Veritabanı işlemi başarısızsa MinIO nesnesini geri yükle.
-        if (objectRemoved && encryptedBackup && objectKey) {
-            try {
-                await storage.put(objectKey, encryptedBackup);
-            } catch (restoreError) {
-                console.error(
-                    "MinIO geri yükleme hatası:",
-                    restoreError.message
-                );
-
-                return res.status(500).json({
-                    error: "Silme başarısız oldu. Dosyanın depolama durumu manuel kontrol edilmeli.",
-                });
-            }
-        }
-
-        console.error("Dosya silme hatası:", error.message);
-
-        return res.status(500).json({
-            error: "Dosya silinemedi.",
-        });
-
-    } finally {
-        if (client) client.release();
-    }
-});
-module.exports = router;

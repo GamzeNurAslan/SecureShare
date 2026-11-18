@@ -9,6 +9,16 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
     const [previewFile, setPreviewFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState("");
     const [openingFileId, setOpeningFileId] = useState(null);
+    const [historyFile, setHistoryFile] = useState(null);
+    const [history, setHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState("");
+
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+
+    const [fatalError, setFatalError] = useState(null);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
@@ -24,7 +34,7 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
                 }
             } catch (err) {
                 if (!cancelled) {
-                    setError(getApiErrorMessage(err));
+                    setFatalError(err);
                 }
             } finally {
                 if (!cancelled) {
@@ -38,7 +48,7 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
         return () => {
             cancelled = true;
         };
-    }, [onFilesChange]);
+    }, [onFilesChange, reloadKey]);
 
     useEffect(() => {
         return () => {
@@ -95,6 +105,28 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
         }
     };
 
+    const handleShowHistory = async (file) => {
+        setHistoryFile(file);
+        setHistory([]);
+        setHistoryError("");
+        setHistoryLoading(true);
+
+        try {
+            const response = await fileAPI.getHistory(file.id);
+
+            setHistory(response.data.history || []);
+        } catch (err) {
+            setHistoryError(getApiErrorMessage(err));
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const closeHistory = () => {
+        setHistoryFile(null);
+        setHistory([]);
+        setHistoryError("");
+    };
     const closePreview = () => {
         setPreviewFile(null);
         setPreviewUrl("");
@@ -108,25 +140,29 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
         file?.mime_type?.startsWith("image/") ||
         /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(file?.original_name || "");
 
-    const handleDelete = async (fileId) => {
-        const confirmed = window.confirm(
-            "Bu dosyayı silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
-        );
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
 
-        if (!confirmed) return;
+        setDeleting(true);
+        setError("");
 
         try {
-            setError("");
-
-            await fileAPI.deleteFile(fileId);
+            await fileAPI.deleteFile(deleteTarget.id);
 
             setFiles((previousFiles) => {
-                const nextFiles = previousFiles.filter((file) => file.id !== fileId);
+                const nextFiles = previousFiles.filter(
+                    (file) => file.id !== deleteTarget.id
+                );
+
                 onFilesChange?.(nextFiles);
                 return nextFiles;
             });
+
+            setDeleteTarget(null);
         } catch (err) {
             setError(getApiErrorMessage(err));
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -165,7 +201,45 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
     if (loading) {
         return <p className="files-loading">Dosyalar yükleniyor...</p>;
     }
+    if (fatalError) {
+        const isConnectionError = !fatalError.response;
+        const isServerError = fatalError.response?.status >= 500;
 
+        return (
+            <section className="api-error-screen" role="alert">
+                <div className="api-error-icon">
+                    {isConnectionError ? "↯" : "!"}
+                </div>
+
+                <h2>
+                    {isConnectionError
+                        ? "Bağlantı Kurulamadı"
+                        : isServerError
+                            ? "Sunucu Hatası"
+                            : "İşlem Gerçekleştirilemedi"}
+                </h2>
+
+                <p>
+                    {isConnectionError
+                        ? "SecureShare sunucusuna ulaşılamıyor. İnternet bağlantınızı ve backend servisinin çalıştığını kontrol edin."
+                        : isServerError
+                            ? "Sunucuda beklenmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin."
+                            : getApiErrorMessage(fatalError)}
+                </p>
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        setFatalError(null);
+                        setLoading(true);
+                        setReloadKey((previous) => previous + 1);
+                    }}
+                >
+                    Tekrar Dene
+                </button>
+            </section>
+        );
+    }
     return (
         <section className="my-files">
             <div className="file-list-heading">
@@ -253,13 +327,18 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
                                                 İndirme izni yok
                                             </span>
                                         )}
-
                                         {isOwner && (
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    handleDelete(file.id)
-                                                }
+                                                onClick={() => handleShowHistory(file)}
+                                            >
+                                                İşlem Geçmişi
+                                            </button>
+                                        )}
+                                        {isOwner && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDeleteTarget(file)}
                                             >
                                                 Dosyayı Sil
                                             </button>
@@ -314,6 +393,120 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
                                     Dosya sahibi bu tür için indirme izni verirse
                                     dosyayı indirebilirsiniz.
                                 </p>
+                            </div>
+                        )}
+                    </section>
+                </div>
+            )}
+            {deleteTarget && (
+                <div className="modal-overlay" role="presentation">
+                    <div
+                        className="confirmation-modal"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-title"
+                    >
+                        <h3 id="delete-title">Dosyayı silmek istiyor musunuz?</h3>
+
+                        <p>
+                            <strong>{deleteTarget.original_name}</strong>
+                        </p>
+
+                        <p>
+                            Bu işlem geri alınamaz. Dosyanızın silinmesini
+                            onaylıyor musunuz?
+                        </p>
+
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="cancel-button"
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleting}
+                            >
+                                Vazgeç
+                            </button>
+
+                            <button
+                                type="button"
+                                className="confirm-delete-button"
+                                onClick={handleDelete}
+                                disabled={deleting}
+                            >
+                                {deleting ? "Siliniyor..." : "Evet, sil"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {historyFile && (
+                <div className="modal-overlay">
+                    <section
+                        className="history-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="history-title"
+                    >
+                        <header className="history-header">
+                            <div>
+                                <p>SECURESHARE AUDIT LOG</p>
+                                <h2 id="history-title">İşlem Geçmişi</h2>
+                                <span>{historyFile.original_name}</span>
+                            </div>
+
+                            <button type="button" onClick={closeHistory}>
+                                Kapat
+                            </button>
+                        </header>
+
+                        {historyLoading ? (
+                            <p>İşlem geçmişi yükleniyor...</p>
+                        ) : historyError ? (
+                            <div className="error-message">
+                                {historyError}
+                            </div>
+                        ) : history.length === 0 ? (
+                            <p>Bu dosyaya ait işlem kaydı bulunamadı.</p>
+                        ) : (
+                            <div className="history-list">
+                                {history.map((entry) => (
+                                    <article
+                                        className="history-entry"
+                                        key={entry.id}
+                                    >
+                                        <div className="history-entry-heading">
+                                            <strong>{entry.action}</strong>
+                                            <span>{entry.result}</span>
+                                        </div>
+
+                                        <p>
+                                            İşlemi yapan: {entry.actor_email || "Bilinmiyor"}
+                                        </p>
+
+                                        <p>
+                                            Tarih: {entry.created_at
+                                                ? new Date(entry.created_at).toLocaleString("tr-TR")
+                                                : "-"}
+                                        </p>
+
+                                        <details>
+                                            <summary>İşlem ayrıntıları</summary>
+                                            <pre>
+                                                {JSON.stringify(entry.details, null, 2)}
+                                            </pre>
+                                        </details>
+
+                                        <details>
+                                            <summary>Hash zinciri bilgileri</summary>
+
+                                            <p>Önceki hash:</p>
+                                            <code>{entry.previous_hash || "-"}</code>
+
+                                            <p>İşlem hash'i:</p>
+                                            <code>{entry.entry_hash || "-"}</code>
+                                        </details>
+                                    </article>
+                                ))}
                             </div>
                         )}
                     </section>

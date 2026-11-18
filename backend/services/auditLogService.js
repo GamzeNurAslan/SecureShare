@@ -1,24 +1,11 @@
-const crypto = require("crypto");
 
-function stableStringify(value) {
-    if (value === undefined) return "null";
+const {
+    computeEntryHash,
+    GENESIS_HASH,
+    loadAuditHmacKey,
+} = require("../audit/auditLog");
 
-    if (value === null || typeof value !== "object") {
-        return JSON.stringify(value);
-    }
-
-    if (Array.isArray(value)) {
-        return `[${value.map(stableStringify).join(",")}]`;
-    }
-
-    return `{${Object.keys(value)
-        .sort()
-        .map(
-            (key) =>
-                `${JSON.stringify(key)}:${stableStringify(value[key])}`
-        )
-        .join(",")}}`;
-}
+const CHAIN_LOCK_KEY = 726300101;
 
 async function writeAuditLog({
     db,
@@ -28,8 +15,35 @@ async function writeAuditLog({
     result,
     details = {},
 }) {
+    if (!db || typeof db.connect !== "function") {
+        throw new Error("Geçerli PostgreSQL Pool bağlantısı gerekli.");
+    }
+
+    if (!action || typeof action !== "string") {
+        throw new Error("Audit log action alanı zorunludur.");
+    }
+
+    if (!result || typeof result !== "string") {
+        throw new Error("Audit log result alanı zorunludur.");
+    }
+
+    if (!details || typeof details !== "object" || Array.isArray(details)) {
+        throw new Error("Audit log details alanı geçersiz.");
+    }
+
+    const client = await db.connect();
+
     try {
-        const previousResult = await db.query(
+        await client.query("BEGIN");
+
+        // Bütün audit kayıtları aynı zincir kilidini kullanır.
+        await client.query(
+            "SELECT pg_advisory_xact_lock($1)",
+            [CHAIN_LOCK_KEY]
+        );
+
+        // Önceki kaydın hash değerini al.
+        const previousResult = await client.query(
             `SELECT entry_hash
              FROM audit_logs
              ORDER BY id DESC
@@ -37,26 +51,30 @@ async function writeAuditLog({
         );
 
         const previousHash =
-            previousResult.rows[0]?.entry_hash || null;
+            previousResult.rows[0]?.entry_hash || GENESIS_HASH;
 
-        const createdAt = new Date().toISOString();
+        const createdAt = new Date();
 
-        const payload = {
-            actorUserId,
-            fileId,
-            action,
-            result,
-            details,
-            previousHash,
-            createdAt,
+        // Kimlik bilgileri de hash'in içine dahil edilir.
+        const storedDetails = {
+            ...details,
+            actor_user_id: actorUserId,
+            file_id: fileId,
         };
 
-        const entryHash = crypto
-            .createHash("sha256")
-            .update(stableStringify(payload))
-            .digest("hex");
+        // Ortak audit modülündeki SHA-256/HMAC standardını kullan.
+        const entryHash = computeEntryHash(
+            {
+                previousHash,
+                action,
+                result,
+                details: storedDetails,
+                createdAt,
+            },
+            loadAuditHmacKey()
+        );
 
-        await db.query(
+        const insertResult = await client.query(
             `INSERT INTO audit_logs (
                 actor_user_id,
                 file_id,
@@ -67,26 +85,34 @@ async function writeAuditLog({
                 entry_hash,
                 created_at
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            RETURNING id`,
             [
                 actorUserId,
                 fileId,
                 action,
                 result,
-                details,
+                JSON.stringify(storedDetails),
                 previousHash,
                 entryHash,
                 createdAt,
             ]
         );
 
+        await client.query("COMMIT");
+
         return {
+            id: insertResult.rows[0].id,
             previousHash,
             entryHash,
+            createdAt,
         };
     } catch (error) {
-        console.error("Audit log yazma hatası:", error.message);
-        return null;
+        await client.query("ROLLBACK").catch(() => {});
+        console.error("Audit log kayıt hatası:", error.message);
+        throw error;
+    } finally {
+        client.release();
     }
 }
 
