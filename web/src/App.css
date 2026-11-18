@@ -1725,15 +1725,373 @@ input:focus {
   }
 }
 
-/* =========================
-   MOBİL UYUMLULUK
-========================= */
 
-@media (max-width: 600px) {
+/* =========================================
+   GENEL ERİŞİLEBİLİRLİK VE HATA MESAJLARI
+========================================= */
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+input {
+  max-width: 100%;
+}
+
+.error-message {
+  padding: 10px 13px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.16);
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.success-message {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================
+   SİLME ONAY PENCERESİ
+========================================= */
+
+.modal-overlay {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(3, 8, 21, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.confirmation-modal {
+  width: min(100%, 440px);
+  padding: 28px;
+  color: #f8fafc;
+  background: #111a31;
+  border: 1px solid #35558d;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+}
+
+.confirmation-modal h3 {
+  margin-bottom: 16px;
+}
+
+.confirmation-modal p {
+  margin: 10px 0;
+  color: #aebed8;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.modal-actions button {
+  min-height: 42px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.cancel-button {
+  color: #dbeafe;
+  background: #334155;
+}
+
+.confirm-delete-button {
+  color: white;
+  background: #dc2626;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   İŞLEM GEÇMİŞİ
+========================================= */
+
+.history-modal {
+  width: min(100%, 760px);
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 25px;
+  color: #f8fafc;
+  background: #111a31;
+  border: 1px solid #35558d;
+  border-radius: 20px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+
+.history-header p {
+  color: #58c9ff;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.history-header h2 {
+  margin: 7px 0;
+}
+
+.history-header span {
+  color: #9db2d3;
+  overflow-wrap: anywhere;
+}
+
+.history-header button {
+  padding: 9px 14px;
+  color: white;
+  background: #294575;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.history-entry {
+  padding: 17px;
+  margin-bottom: 12px;
+  border: 1px solid #334b77;
+  border-radius: 12px;
+  background: #0d1730;
+}
+
+.history-entry-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.history-entry-heading strong {
+  color: #93c5fd;
+  overflow-wrap: anywhere;
+}
+
+.history-entry-heading span {
+  color: #86efac;
+}
+
+.history-entry p {
+  margin: 8px 0;
+  color: #b7c7e1;
+  font-size: 13px;
+}
+
+.history-entry details {
+  margin-top: 13px;
+  padding-top: 10px;
+  border-top: 1px solid #334b77;
+}
+
+.history-entry summary {
+  color: #93c5fd;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.history-entry pre {
+  margin-top: 10px;
+  padding: 12px;
+  overflow-x: auto;
+  color: #cbd5e1;
+  background: #080f20;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.history-entry code {
+  display: block;
+  margin: 7px 0;
+  padding: 9px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  color: #86efac;
+  background: #080f20;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
+/* =========================================
+   API HATA EKRANI
+========================================= */
+
+.api-error-screen {
+  display: grid;
+  min-height: 350px;
+  padding: 35px 20px;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  background: #111a31;
+  border: 1px solid #334b77;
+  border-radius: 18px;
+}
+
+.api-error-icon {
+  display: grid;
+  width: 65px;
+  height: 65px;
+  margin-bottom: 18px;
+  place-items: center;
+  color: #fca5a5;
+  background: #4c202d;
+  border-radius: 50%;
+  font-size: 32px;
+}
+
+.api-error-screen h2 {
+  color: #f8fafc;
+}
+
+.api-error-screen p {
+  max-width: 440px;
+  margin: 12px 0 20px;
+  color: #aebed8;
+  line-height: 1.6;
+}
+
+.api-error-screen button {
+  padding: 12px 20px;
+  color: white;
+  background: #2563eb;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+/* =========================================
+   AÇIK TEMA - MODAL VE HATA EKRANLARI
+========================================= */
+
+.dashboard-light-mode .confirmation-modal,
+.dashboard-light-mode .history-modal,
+.dashboard-light-mode .api-error-screen {
+  color: #16233b;
+  background: #f8fbff;
+  border-color: #bed1ee;
+}
+
+.dashboard-light-mode .confirmation-modal p,
+.dashboard-light-mode .history-header span,
+.dashboard-light-mode .history-entry p,
+.dashboard-light-mode .api-error-screen p {
+  color: #587196;
+}
+
+.dashboard-light-mode .history-entry {
+  background: white;
+  border-color: #bed1ee;
+}
+
+.dashboard-light-mode .history-entry pre,
+.dashboard-light-mode .history-entry code {
+  color: #263b5d;
+  background: #edf3fc;
+}
+
+/* =========================================
+   TABLET UYUMLULUĞU
+========================================= */
+
+@media (min-width: 601px) and (max-width: 1024px) {
 
   .dashboard-header,
   .dashboard-content {
-    width: min(100% - 32px, 1308px);
+    width: calc(100% - 48px);
+  }
+
+  .file-card {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .file-info {
+    min-width: 180px;
+    flex: 1;
+  }
+
+  .file-card-controls {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .file-actions {
+    flex-wrap: wrap;
+  }
+
+  .auth-card {
+    max-width: 540px;
+  }
+
+  .share-overlay {
+    padding: 18px;
+  }
+
+  .share-overlay .share-container {
+    width: 100%;
+    max-width: 850px;
+    max-height: calc(100vh - 36px);
+    padding: 22px;
+  }
+
+  .share-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.9fr);
+    gap: 14px;
+  }
+
+  .share-editor,
+  .share-overlay .permission-list {
+    padding: 15px;
+  }
+
+  .share-overlay .permission-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+/* =========================================
+   MOBİL UYUMLULUK
+========================================= */
+
+@media (max-width: 600px) {
+
+  .auth-container,
+  .dashboard {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dashboard-header,
+  .dashboard-content {
+    width: calc(100% - 32px);
   }
 
   .dashboard-header {
@@ -1770,23 +2128,23 @@ input:focus {
   }
 
   .upload-container h1 {
-    font-size: 36px;
+    font-size: 32px;
   }
 
   .upload-description {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .upload-container .upload-primary-button {
-    min-height: 68px;
+    min-height: 60px;
     border-radius: 17px;
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .dashboard-stat {
-    min-height: 104px;
+    min-height: 100px;
     gap: 14px;
-    margin-bottom: 36px;
+    margin-bottom: 30px;
     padding: 18px;
     border-radius: 22px;
   }
@@ -1802,33 +2160,63 @@ input:focus {
     display: none;
   }
 
+  .file-list-heading {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .file-list-heading h2 {
-    font-size: 29px;
+    font-size: 25px;
   }
 
   .empty-vault {
-    min-height: 315px;
-    padding: 30px 18px;
+    min-height: 280px;
+    padding: 26px 18px;
     border-radius: 24px;
   }
 
   .empty-vault-icon {
-    width: 72px;
-    height: 72px;
-    margin-bottom: 18px;
+    width: 68px;
+    height: 68px;
+    margin-bottom: 16px;
     border-radius: 18px;
-    font-size: 40px;
+    font-size: 36px;
   }
 
   .upload-container,
-  .files-container,
-  .share-container {
+  .files-container {
     padding: 18px;
   }
 
   .file-card {
     align-items: flex-start;
     flex-direction: column;
+    gap: 14px;
+    padding: 17px;
+  }
+
+  .file-info {
+    width: 100%;
+  }
+
+  .file-card-controls {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .file-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+
+  .file-actions button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px;
+    white-space: normal;
   }
 
   .permission-card {
@@ -1836,11 +2224,20 @@ input:focus {
     flex-direction: column;
   }
 
+  .permission-actions {
+    width: 100%;
+  }
+
+  .permission-actions button {
+    flex: 1;
+  }
+
   .auth-card,
   .login-card,
   .register-card {
-    padding: 28px 22px;
-    border-radius: 26px;
+    width: 100%;
+    padding: 24px 18px;
+    border-radius: 22px;
   }
 
   .auth-header-row {
@@ -1853,363 +2250,168 @@ input:focus {
   }
 
   .auth-eyebrow {
-    margin-top: 28px;
+    margin-top: 22px;
   }
 
   .auth-card h1 {
-    margin-top: 28px;
-    font-size: 32px;
+    margin-top: 24px;
+    font-size: 30px;
   }
 
   .auth-card .subtitle {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .auth-card input {
-    min-height: 58px;
-    font-size: 17px;
-  }
-
-  .file-actions,
-  .permission-actions {
-    width: 100%;
-  }
-
-  .file-actions button,
-  .permission-actions button {
-    flex: 1;
+    min-height: 54px;
+    font-size: 16px;
   }
 
   .share-header {
     align-items: flex-start;
   }
 
+  /* Dosya önizleme */
 
-  /* Genel modal arka planı */
-  .modal-overlay {
-    position: fixed;
-    z-index: 200;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    padding: 20px;
-    background: rgba(3, 8, 21, 0.8);
-    backdrop-filter: blur(8px);
+  .file-viewer-overlay {
+    padding: 10px;
   }
 
-  /* Silme onay penceresi */
-  .confirmation-modal {
-    width: min(100%, 440px);
-    padding: 28px;
-    color: #f8fafc;
-    background: #111a31;
-    border: 1px solid #35558d;
-    border-radius: 18px;
+  .file-viewer {
+    width: 100%;
+    height: 88vh;
+    border-radius: 16px;
   }
 
-  .confirmation-modal h3 {
-    margin-bottom: 16px;
+  .file-viewer-header {
+    padding: 12px;
   }
 
-  .confirmation-modal p {
-    margin: 10px 0;
-    color: #aebed8;
-    line-height: 1.6;
+  .file-viewer-header h3 {
+    max-width: 55vw;
+    font-size: 13px;
+  }
+
+  /* Paylaşım penceresi */
+
+  .share-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .share-overlay .share-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90dvh;
+    padding: 20px 16px;
+    overflow-y: auto;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .share-overlay .share-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .share-overlay .share-header h2 {
+    font-size: 22px;
+  }
+
+  .share-close-button {
+    flex-shrink: 0;
+  }
+
+  .share-file-summary {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .share-file-summary>div {
+    min-width: 0;
+  }
+
+  .share-file-summary h3 {
     overflow-wrap: anywhere;
+  }
+
+  .share-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .share-editor,
+  .share-overlay .permission-list {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .share-overlay .share-form input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .share-overlay .permission-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .share-overlay .share-form-actions {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .share-overlay .share-form-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .share-overlay .permission-actions {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .share-overlay .permission-actions button {
+    flex: 1;
+    min-height: 40px;
+  }
+
+  .share-overlay .user-search-results button {
+    width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Silme penceresi */
+
+  .modal-overlay {
+    padding: 14px;
+  }
+
+  .confirmation-modal {
+    padding: 22px 18px;
   }
 
   .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 24px;
+    flex-direction: column-reverse;
   }
 
   .modal-actions button {
-    padding: 11px 16px;
-    border: none;
-    border-radius: 9px;
-    cursor: pointer;
-  }
-
-  .cancel-button {
-    color: #dbeafe;
-    background: #334155;
-  }
-
-  .confirm-delete-button {
-    color: white;
-    background: #dc2626;
-  }
-
-  .modal-actions button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    width: 100%;
   }
 
   /* İşlem geçmişi */
+
   .history-modal {
-    width: min(100%, 760px);
-    max-height: 85vh;
-    overflow-y: auto;
-    padding: 25px;
-    color: #f8fafc;
-    background: #111a31;
-    border: 1px solid #35558d;
-    border-radius: 20px;
+    max-height: 88vh;
+    padding: 18px;
   }
 
   .history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 15px;
-    margin-bottom: 24px;
-  }
-
-  .history-header p {
-    color: #58c9ff;
-    font-size: 11px;
-    font-weight: bold;
-  }
-
-  .history-header h2 {
-    margin: 7px 0;
-  }
-
-  .history-header span {
-    color: #9db2d3;
-    overflow-wrap: anywhere;
-  }
-
-  .history-header button {
-    padding: 9px 14px;
-    color: white;
-    background: #294575;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .history-entry {
-    padding: 17px;
-    margin-bottom: 12px;
-    border: 1px solid #334b77;
-    border-radius: 12px;
-    background: #0d1730;
+    flex-wrap: wrap;
   }
 
   .history-entry-heading {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  .history-entry-heading strong {
-    color: #93c5fd;
-    overflow-wrap: anywhere;
-  }
-
-  .history-entry-heading span {
-    color: #86efac;
-  }
-
-  .history-entry p {
-    margin: 8px 0;
-    color: #b7c7e1;
-    font-size: 13px;
-  }
-
-  .history-entry details {
-    margin-top: 13px;
-    padding-top: 10px;
-    border-top: 1px solid #334b77;
-  }
-
-  .history-entry summary {
-    color: #93c5fd;
-    cursor: pointer;
-    font-size: 13px;
-  }
-
-  .history-entry pre {
-    margin-top: 10px;
-    padding: 12px;
-    overflow-x: auto;
-    color: #cbd5e1;
-    background: #080f20;
-    border-radius: 8px;
-    font-size: 12px;
-  }
-
-  .history-entry code {
-    display: block;
-    margin: 7px 0;
-    padding: 9px;
-    overflow-wrap: anywhere;
-    word-break: break-all;
-    color: #86efac;
-    background: #080f20;
-    border-radius: 7px;
-    font-size: 11px;
-  }
-
-  /* Bağlantı ve sunucu hatası ekranları */
-  .api-error-screen {
-    display: grid;
-    min-height: 350px;
-    padding: 35px 20px;
-    place-content: center;
-    justify-items: center;
-    text-align: center;
-    background: #111a31;
-    border: 1px solid #334b77;
-    border-radius: 18px;
-  }
-
-  .api-error-icon {
-    display: grid;
-    width: 65px;
-    height: 65px;
-    margin-bottom: 18px;
-    place-items: center;
-    color: #fca5a5;
-    background: #4c202d;
-    border-radius: 50%;
-    font-size: 32px;
-  }
-
-  .api-error-screen h2 {
-    color: #f8fafc;
-  }
-
-  .api-error-screen p {
-    max-width: 440px;
-    margin: 12px 0 20px;
-    color: #aebed8;
-    line-height: 1.6;
-  }
-
-  .api-error-screen button {
-    padding: 12px 20px;
-    color: white;
-    background: #2563eb;
-    border: none;
-    border-radius: 9px;
-    cursor: pointer;
-  }
-
-  .dashboard-light-mode .confirmation-modal,
-  .dashboard-light-mode .history-modal,
-  .dashboard-light-mode .api-error-screen {
-    color: #16233b;
-    background: #f8fbff;
-    border-color: #bed1ee;
-  }
-
-  .dashboard-light-mode .confirmation-modal p,
-  .dashboard-light-mode .history-header span,
-  .dashboard-light-mode .history-entry p,
-  .dashboard-light-mode .api-error-screen p {
-    color: #587196;
-  }
-
-  .dashboard-light-mode .history-entry {
-    background: white;
-    border-color: #bed1ee;
-  }
-
-  .dashboard-light-mode .history-entry pre,
-  .dashboard-light-mode .history-entry code {
-    background: #edf3fc;
-  }
-
-  /* Tablet uyumluluğu */
-  @media (min-width: 601px) and (max-width: 1024px) {
-
-    .dashboard-header,
-    .dashboard-content {
-      width: calc(100% - 48px);
-    }
-
-    .file-card {
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-
-    .file-info {
-      min-width: 180px;
-      flex: 1;
-    }
-
-    .file-card-controls {
-      width: 100%;
-      justify-content: space-between;
-    }
-
-    .file-actions {
-      flex-wrap: wrap;
-    }
-
-    .auth-card {
-      max-width: 540px;
-    }
-  }
-
-  button {
-    cursor: pointer;
-  }
-
-  button:focus-visible,
-  input:focus-visible {
-    outline: 2px solid #60a5fa;
-    outline-offset: 3px;
-  }
-
-  input {
-    max-width: 100%;
-  }
-
-  .error-message {
-    padding: 10px 13px;
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    border-radius: 10px;
-    background: rgba(127, 29, 29, 0.16);
-    color: #fca5a5;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-
-  .success-message {
-    font-size: 13px;
-    line-height: 1.5;
-  }
-
-  /* Küçük ekranlarda taşmayı önle */
-  @media (max-width: 600px) {
-
-    .auth-container,
-    .dashboard {
-      width: 100%;
-      overflow-x: hidden;
-    }
-
-    .auth-card {
-      width: 100%;
-      padding: 24px 18px;
-    }
-
-    .file-info h3 {
-      overflow-wrap: anywhere;
-    }
-
-    .file-actions {
-      flex-wrap: wrap;
-    }
-
-    .file-actions button {
-      min-height: 42px;
-    }
+    flex-wrap: wrap;
   }
 }
