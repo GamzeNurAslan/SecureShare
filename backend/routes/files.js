@@ -18,10 +18,38 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+const allowedTypes = {
+    ".pdf": ["application/pdf"],
+    ".png": ["image/png"],
+    ".jpg": ["image/jpeg"],
+    ".jpeg": ["image/jpeg"],
+    ".txt": ["text/plain"],
+    ".docx": [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ],
+    ".xlsx": [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ],
+};
+
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 50 * 1024 * 1024,
+        files: 1,
+    },
+    fileFilter: (req, file, cb) => {
+        const extension = require("path")
+            .extname(file.originalname)
+            .toLowerCase();
+
+        const allowedMimes = allowedTypes[extension];
+
+        if (!allowedMimes || !allowedMimes.includes(file.mimetype)) {
+            return cb(null, false);
+        }
+
+        cb(null, true);
     },
 });
 
@@ -188,7 +216,18 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     if (!req.file) {
         return res.status(400).json({
-            error: "Yüklenecek dosya bulunamadı.",
+            error: "Dosya seçilmedi veya dosya türü desteklenmiyor.",
+        });
+    }
+
+    if (
+        !req.file.originalname ||
+        !req.file.originalname.trim() ||
+        req.file.originalname.length > 255 ||
+        req.file.size <= 0
+    ) {
+        return res.status(400).json({
+            error: "Dosya adı veya dosya boyutu geçersiz.",
         });
     }
 

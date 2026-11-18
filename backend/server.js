@@ -30,9 +30,57 @@ const db = new Pool({
   database: process.env.POSTGRES_DB,
 });
 
-app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:5173,http://127.0.0.1:5173"
+)
+  .split(",")
+  .map((origin) => origin.trim());
 
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Mobil uygulama gibi Origin göndermeyen istemciler
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS erişimine izin verilmedi."));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+app.use(express.json({ limit: "1mb" }));
+// IP bazlı istek sınırlandırma
+const requestLimits = new Map();
+
+function rateLimit({ windowMs, max, message }) {
+  return (req, res, next) => {
+    const key = `${req.path}:${req.ip}`;
+    const now = Date.now();
+    const current = requestLimits.get(key);
+
+    if (!current || now - current.start >= windowMs) {
+      requestLimits.set(key, { start: now, count: 1 });
+      return next();
+    }
+
+    if (current.count >= max) {
+      return res.status(429).json({ error: message });
+    }
+
+    current.count++;
+    next();
+  };
+}
+
+// Aynı e-posta için başarısız giriş denemeleri
+const failedLogins = new Map();
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
 app.locals.db = db;
 
 // MinIO bağlantısı
@@ -93,7 +141,23 @@ app.get("/health/db", async (req, res) => {
     });
   }
 });
+app.use(
+  "/api/auth/register",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: "Çok fazla kayıt isteği gönderdiniz. Daha sonra tekrar deneyin.",
+  })
+);
 
+app.use(
+  "/api/auth/login",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: "Çok fazla giriş isteği gönderdiniz. Daha sonra tekrar deneyin.",
+  })
+);
 // Kullanıcı kaydı
 app.post("/api/auth/register", async (req, res) => {
   try {
@@ -102,8 +166,10 @@ app.post("/api/auth/register", async (req, res) => {
     if (
       typeof fullName !== "string" ||
       !fullName.trim() ||
+      fullName.trim().length > 100 ||
       typeof email !== "string" ||
       !email.trim() ||
+      email.trim().length > 254 ||
       typeof password !== "string" ||
       !password
     ) {
@@ -113,7 +179,7 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const strongPassword =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{12,}$/
 
     if (!strongPassword.test(password)) {
       return res.status(400).json({
@@ -123,7 +189,13 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const attempt = failedLogins.get(normalizedEmail);
 
+    if (attempt && attempt.blockedUntil > Date.now()) {
+      return res.status(429).json({
+        error: "Çok fazla başarısız giriş denemesi. 15 dakika sonra tekrar deneyin.",
+      });
+    }
     const passwordHash = await argon2.hash(password, {
       type: argon2.argon2id,
     });
@@ -187,6 +259,15 @@ app.post("/api/auth/login", async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      const current = failedLogins.get(normalizedEmail) || { count: 0 };
+      current.count++;
+
+      if (current.count >= 5) {
+        current.blockedUntil = Date.now() + 15 * 60 * 1000;
+      }
+
+      failedLogins.set(normalizedEmail, current);
+
       return res.status(401).json({
         error: "E-posta veya parola hatalı.",
       });
@@ -200,11 +281,20 @@ app.post("/api/auth/login", async (req, res) => {
     );
 
     if (!passwordIsValid) {
+      const current = failedLogins.get(normalizedEmail) || { count: 0 };
+      current.count++;
+
+      if (current.count >= 5) {
+        current.blockedUntil = Date.now() + 15 * 60 * 1000;
+      }
+
+      failedLogins.set(normalizedEmail, current);
+
       return res.status(401).json({
         error: "E-posta veya parola hatalı.",
       });
     }
-
+    failedLogins.delete(normalizedEmail);
     res.json({
       message: "Giriş başarılı.",
       token: createToken(user),
@@ -234,11 +324,24 @@ app.use((req, res) => {
 });
 
 // Genel hata yakalayıcı
+// Genel hata yakalayıcı
 app.use((err, req, res, next) => {
   console.error("Sunucu hatası:", err.message);
 
   if (res.headersSent) {
     return next(err);
+  }
+
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      error: "Dosya boyutu 50 MB sınırını aşamaz.",
+    });
+  }
+
+  if (err.code === "LIMIT_UNEXPECTED_FILE") {
+    return res.status(400).json({
+      error: "Yalnızca bir dosya yükleyebilirsiniz.",
+    });
   }
 
   res.status(err.status || 500).json({

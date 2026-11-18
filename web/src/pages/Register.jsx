@@ -23,15 +23,41 @@ function Register() {
         e.preventDefault();
         setError("");
 
+        if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+            setError("Tüm alanları doldurun.");
+            return;
+        }
+
+        if (fullName.trim().length > 100) {
+            setError("Ad soyad 100 karakterden uzun olamaz.");
+            return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            setError("Geçerli bir e-posta adresi girin.");
+            return;
+        }
+
+        if (
+            password.length < 12 ||
+            !/[a-z]/.test(password) ||
+            !/[A-Z]/.test(password) ||
+            !/\d/.test(password) ||
+            !/[^A-Za-z0-9]/.test(password)
+        ) {
+            setError("Parola en az 12 karakter olmalı; büyük harf, küçük harf, rakam ve özel karakter içermeli.");
+            return;
+        }
+
         if (password !== confirmPassword) {
-            setError("Şifreler birbiriyle eşleşmiyor.");
+            setError("Parolalar birbiriyle eşleşmiyor.");
             return;
         }
 
         setLoading(true);
 
         try {
-            await register(fullName, email, password);
+            await register(fullName.trim(), email.trim(), password);
             navigate("/dashboard");
         } catch (err) {
             setError(getApiErrorMessage(err));
