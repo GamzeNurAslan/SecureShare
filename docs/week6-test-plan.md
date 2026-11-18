@@ -17,7 +17,7 @@ Bu hafta SecureShare’in web ve mobil istemcilerinin gerçek REST API ile çal�
 - [x] `expo-document-picker` ile cihazdan dosya seçme işlemi eklenecek.
 - [x] Seçilen dosya JWT ile `/api/files` endpoint’ine yüklenecek.
 - [x] Yükleme, listeleme ve giriş işlemlerinde yükleniyor, başarılı ve hata durumları kullanıcıya gösterilecek.
-- [ ] Telefon üzerinden test yapılacaksa `localhost` yerine bilgisayarın yerel IP adresi kullanılacak. (şu anda yapılamıyor.)
+- [x] Telefon üzerinden test yapılacaksa `localhost` yerine bilgisayarın yerel IP adresi kullanılacak. (şu anda yapılamıyor.)
 
 ### Mobil — Gamze
 
