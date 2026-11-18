@@ -8,20 +8,20 @@ Bu hafta dosya paylaşım izinlerinin süreli olarak yönetilmesi, indirme işle
 
 ## Gamze’nin Görevleri — Mobil Uygulama
 
-- [ ] Mobil dosya detay ekranı hazırlanacak.
-- [ ] Kullanıcının sahip olduğu veya kendisiyle paylaşılan dosyaları ayırt edebilmesi sağlanacak.
-- [ ] Yetkili kullanıcı için dosya indirme işlemi eklenecek.
-- [ ] İndirme sırasında yükleniyor, başarılı ve hata durumları gösterilecek.
-- [ ] Dosya erişim izni kaldırıldığında veya süresi dolduğunda kullanıcıya anlaşılır mesaj gösterilecek.
-- [ ] Mobil uygulamada oturum süresi dolduğunda giriş ekranına güvenli yönlendirme yapılacak.
-- [ ] Mobil indirme ve erişim senaryolarının ekran görüntüleri alınacak.
+- [x] Mobil dosya detay ekranı hazırlanacak.
+- [x] Kullanıcının sahip olduğu veya kendisiyle paylaşılan dosyaları ayırt edebilmesi sağlanacak.
+- [x] Yetkili kullanıcı için dosya indirme işlemi eklenecek.
+- [x] İndirme sırasında yükleniyor, başarılı ve hata durumları gösterilecek.
+- [x] Dosya erişim izni kaldırıldığında veya süresi dolduğunda kullanıcıya anlaşılır mesaj gösterilecek.
+- [x] Mobil uygulamada oturum süresi dolduğunda giriş ekranına güvenli yönlendirme yapılacak.
+- [x] Mobil indirme ve erişim senaryolarının ekran görüntüleri alınacak.
 
 ### Mobil — Gamze
 
-- [ ] Dosya detay ekranı
-- [ ] Dosya indirme butonu
-- [ ] Dosya sahibi ve dosya türü/boyutu bilgisini gösterme
-- [ ] Erişim izni kaldırılmış veya süresi dolmuş dosya için hata ekranı
+- [x] Dosya detay ekranı
+- [x] Dosya indirme butonu
+- [x] Dosya sahibi ve dosya türü/boyutu bilgisini gösterme
+- [x] Erişim izni kaldırılmış veya süresi dolmuş dosya için hata ekranı
 
 ## Büşra’nın Görevleri — Backend ve Web Uygulaması
 
