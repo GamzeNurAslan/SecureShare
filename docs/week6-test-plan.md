@@ -17,7 +17,7 @@ Bu hafta SecureShare’in web ve mobil istemcilerinin gerçek REST API ile çal�
 - [x] `expo-document-picker` ile cihazdan dosya seçme işlemi eklenecek.
 - [x] Seçilen dosya JWT ile `/api/files` endpoint’ine yüklenecek.
 - [x] Yükleme, listeleme ve giriş işlemlerinde yükleniyor, başarılı ve hata durumları kullanıcıya gösterilecek.
-- [x] Telefon üzerinden test yapılacaksa `localhost` yerine bilgisayarın yerel IP adresi kullanılacak.
+- [x] Telefon üzerinden test yapılacaksa `localhost` yerine bilgisayarın yerel IP adresi kullanılacak. (şu anda yapılamıyor.)
 
 ### Mobil — Gamze
 
@@ -30,54 +30,66 @@ Bu hafta SecureShare’in web ve mobil istemcilerinin gerçek REST API ile çal�
 
 ## Büşra’nın Görevleri — Web Uygulaması
 
-- [ ] `web/` klasöründe React web uygulaması başlatılacak.
-- [ ] Web giriş ve kayıt ekranları hazırlanacak.
-- [ ] JWT ile oturum yönetimi eklenecek.
-- [ ] Kullanıcının dosya listesi gösterilecek.
-- [ ] Dosya yükleme formu hazırlanacak.
-- [ ] Dosya sahibi için paylaşım/yetki ekranı hazırlanacak.
-- [ ] Kayıtlı kullanıcıya okuma veya indirme izni verme işlemi eklenecek.
-- [ ] Verilmiş bir izni kaldırma işlemi eklenecek.
-- [ ] API hata mesajları kullanıcıya anlaşılır biçimde gösterilecek.
+- [x] `web/` klasöründe React web uygulaması başlatılacak.
+- [x] Web giriş ve kayıt ekranları hazırlanacak.
+- [x] JWT ile oturum yönetimi eklenecek.
+- [x] Kullanıcının dosya listesi gösterilecek.
+- [x] Dosya yükleme formu hazırlanacak.
+- [x] Dosya sahibi için paylaşım/yetki ekranı hazırlanacak.
+- [x] Kayıtlı kullanıcıya okuma veya indirme izni verme işlemi eklenecek.
+- [x] Verilmiş bir izni kaldırma işlemi eklenecek.
+- [x] API hata mesajları kullanıcıya anlaşılır biçimde gösterilecek.
 
 ### Web — Büşra
 
-- [ ] Giriş ekranı
-- [ ] Kayıt ekranı
-- [ ] Ana dashboard
-- [ ] Dosya listesi
-- [ ] Dosya yükleme alanı
-- [ ] Boş dosya listesi, yükleniyor ve hata durumları
+- [x] Giriş ekranı
+- [x] Kayıt ekranı
+- [x] Ana dashboard
+- [x] Dosya listesi
+- [x] Dosya yükleme alanı
+- [x] Boş dosya listesi, yükleniyor ve hata durumları
 
 
 ## Hava’nın Görevleri — Entegrasyon ve Test
 
-- [ ] Mobil ve web istemcilerinin yalnızca REST API üzerinden çalıştığı kontrol edilecek.
-- [ ] İstemcilerin MinIO, PostgreSQL, KEK veya şifreleme anahtarlarına doğrudan erişmediği doğrulanacak.
-- [ ] Mobil dosya seçme ve yükleme akışı test edilecek.
-- [ ] Web dosya yükleme ve listeleme akışı test edilecek.
-- [ ] Token geçersiz veya süresi dolmuş olduğunda kullanıcıya uygun hata mesajı gösterildiği kontrol edilecek.
-- [ ] Dosya türü veya boyutu uygun değilse arayüzün hata mesajı gösterdiği test edilecek.
-- [ ] Web ve mobil uygulamadaki sonuçlar karşılaştırılarak entegrasyon notları hazırlanacak.
+- [x] Mobil ve web istemcilerinin yalnızca REST API üzerinden çalıştığı kontrol edilecek.
+- [x] İstemcilerin MinIO, PostgreSQL, KEK veya şifreleme anahtarlarına doğrudan erişmediği doğrulanacak.
+- [x] Mobil dosya seçme ve yükleme akışı test edilecek.
+- [x] Web dosya yükleme ve listeleme akışı test edilecek.
+- [x] Token geçersiz veya süresi dolmuş olduğunda kullanıcıya uygun hata mesajı gösterildiği kontrol edilecek.
+- [x] Dosya türü veya boyutu uygun değilse arayüzün hata mesajı gösterdiği test edilecek.
+- [x] Web ve mobil uygulamadaki sonuçlar karşılaştırılarak entegrasyon notları hazırlanacak.
 
 ## Genel Kabul Kriterleri
 
-- [ ] Kullanıcı mobil uygulama üzerinden kayıt olabilir.
-- [ ] Kullanıcı mobil uygulama üzerinden giriş yapabilir.
-- [ ] Başarılı girişten sonra kullanıcı dosya listesini görebilir.
-- [ ] Kullanıcı cihazından seçtiği uygun dosyayı yükleyebilir.
-- [ ] Yeni yüklenen dosya liste ekranında görüntülenir.
-- [ ] Kullanıcı çıkış yaptığında korumalı ekranlara tekrar erişemez.
-- [ ] Kullanıcı web uygulaması üzerinden giriş yapabilir.
-- [ ] Dosya sahibi web uygulamasından başka kayıtlı kullanıcıya izin verebilir.
-- [ ] Kaldırılan izin arayüzde güncellenir.
-- [ ] Web ve mobil uygulama hata durumlarında uygulamayı kapatmadan mesaj gösterir.
+- [x] Kullanıcı mobil uygulama üzerinden kayıt olabilir.
+- [x] Kullanıcı mobil uygulama üzerinden giriş yapabilir.
+- [x] Başarılı girişten sonra kullanıcı dosya listesini görebilir.
+- [x] Kullanıcı cihazından seçtiği uygun dosyayı yükleyebilir.
+- [x] Yeni yüklenen dosya liste ekranında görüntülenir.
+- [x] Kullanıcı çıkış yaptığında korumalı ekranlara tekrar erişemez.
+- [x] Kullanıcı web uygulaması üzerinden giriş yapabilir.
+- [x] Dosya sahibi web uygulamasından başka kayıtlı kullanıcıya izin verebilir.
+- [x] Kaldırılan izin arayüzde güncellenir.
+- [x] Web ve mobil uygulama hata durumlarında uygulamayı kapatmadan mesaj gösterir.
 
 ## Hafta Sonu Çıktıları
 
-- [ ] Gerçek API’ye bağlı mobil giriş, kayıt ve dosya listeleme ekranları.
-- [ ] Mobil dosya seçme ve yükleme akışı.
-- [ ] Temel React web uygulaması.
-- [ ] Web üzerinden dosya listeleme, yükleme ve izin yönetimi arayüzü.
-- [ ] Web ve mobil entegrasyon test ekran görüntüleri.
-- [ ] 6. hafta rapor notları.
+- [x] Gerçek API’ye bağlı mobil giriş, kayıt ve dosya listeleme ekranları.
+- [x] Mobil dosya seçme ve yükleme akışı.
+- [x] Temel React web uygulaması.
+- [x] Web üzerinden dosya listeleme, yükleme ve izin yönetimi arayüzü.
+- [x] Web ve mobil entegrasyon test ekran görüntüleri.
+- [x] 6. hafta rapor notları.
+
+## 6. Hafta Rapor Notları - Entegrasyon Notları
+
+- Mobil giriş, kayıt, JWT saklama ve dosya listeleme akışları başarıyla test edildi.
+- Mobil dosya seçme ve yükleme işlemi başarılı oldu.
+- React web uygulamasında giriş, kayıt, dosya listeleme ve yükleme çalışıyor.
+- Web üzerinden dosya paylaşma, izin verme ve izin kaldırma arayüzleri doğrulandı.
+- Mobil ve web istemcileri yalnızca REST API üzerinden çalışıyor.
+- Client boundary kontrolü 0 hata ve 0 uyarı ile tamamlandı.
+- Geçersiz token durumunda kullanıcıya hata mesajı gösterildi.
+- Telefon üzerinden yerel IP testi yapılamadı.
+- Dosya türü doğrulaması sonraki geliştirme olarak bırakıldı.
