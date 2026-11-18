@@ -8,20 +8,29 @@ Bu hafta dosya paylaşım izinlerinin süreli olarak yönetilmesi, indirme işle
 
 ## Gamze’nin Görevleri — Mobil Uygulama
 
-- [ ] Mobil dosya detay ekranı hazırlanacak.
-- [ ] Kullanıcının sahip olduğu veya kendisiyle paylaşılan dosyaları ayırt edebilmesi sağlanacak.
-- [ ] Yetkili kullanıcı için dosya indirme işlemi eklenecek.
-- [ ] İndirme sırasında yükleniyor, başarılı ve hata durumları gösterilecek.
-- [ ] Dosya erişim izni kaldırıldığında veya süresi dolduğunda kullanıcıya anlaşılır mesaj gösterilecek.
-- [ ] Mobil uygulamada oturum süresi dolduğunda giriş ekranına güvenli yönlendirme yapılacak.
-- [ ] Mobil indirme ve erişim senaryolarının ekran görüntüleri alınacak.
+- [x] Mobil dosya detay ekranı hazırlanacak.
+- [x] Kullanıcının sahip olduğu veya kendisiyle paylaşılan dosyaları ayırt edebilmesi sağlanacak.
+- [x] Yetkili kullanıcı için dosya indirme işlemi eklenecek.
+- [x] İndirme sırasında yükleniyor, başarılı ve hata durumları gösterilecek.
+- [x] Dosya erişim izni kaldırıldığında veya süresi dolduğunda kullanıcıya anlaşılır mesaj gösterilecek.
+- [x] Mobil uygulamada oturum süresi dolduğunda giriş ekranına güvenli yönlendirme yapılacak.
+- [x] Mobil indirme ve erişim senaryolarının ekran görüntüleri alınacak.
+- [x] PostgreSQL’de folders tablosu oluşturulur.
+- [x] files tablosuna folder_id eklenir.
+- [x] Kullanıcı “Yeni klasör” seçeneğiyle klasör oluşturur.
+- [x] Aynı klasör içinde aynı isim tekrar kullanılamaz.
+- [x] Dosya yüklerken hedef klasör seçilir.
+- [x] Klasörler ve dosyalar ayrı listelenir.
+- [x] Klasör içine girme ve üst klasöre dönme için gezinti eklenir.
+- [x] Her kullanıcı yalnızca kendi klasörlerine erişebilir.
+- [x] MinIO’daki şifreli dosya anahtarları değişmez; klasör bilgisi PostgreSQL’de tutulur.
 
 ### Mobil — Gamze
 
-- [ ] Dosya detay ekranı
-- [ ] Dosya indirme butonu
-- [ ] Dosya sahibi ve dosya türü/boyutu bilgisini gösterme
-- [ ] Erişim izni kaldırılmış veya süresi dolmuş dosya için hata ekranı
+- [x] Dosya detay ekranı
+- [x] Dosya indirme butonu
+- [x] Dosya sahibi ve dosya türü/boyutu bilgisini gösterme
+- [x] Erişim izni kaldırılmış veya süresi dolmuş dosya için hata ekranı
 
 ## Büşra’nın Görevleri — Backend ve Web Uygulaması
 
@@ -74,3 +83,11 @@ Bu hafta dosya paylaşım izinlerinin süreli olarak yönetilmesi, indirme işle
 - [ ] Audit log kayıtlarının oluşturulması.
 - [ ] Yetki süresi, silme ve audit log test ekran görüntüleri.
 - [ ] 7. hafta rapor notları.
+
+## Genel Hafta Değerlendirmesi
+
+7. haftada süreli dosya paylaşımı, izin güncelleme ve izin kaldırma işlemleri tamamlandı. Web ve mobil uygulamalara dosya detayları, indirme işlemleri ve erişim durumları eklendi.
+
+Dosya sahibi, dosyalarını silebilir ve paylaşılan izinleri yönetebilir hâle getirildi. Kullanıcıların dosya sahibi olduğu veya dosyanın kendisiyle paylaşıldığı durumlar ayırt edildi. Klasör oluşturma, klasör içinde gezinme ve dosyaları klasörlere göre yönetme özellikleri tamamlandı.
+
+Hafta sonunda dosya paylaşma, indirme, silme, klasör yönetimi ve yetki kontrolü senaryoları başarıyla doğrulandı.
