@@ -143,10 +143,10 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
     const handleDelete = async () => {
         if (!deleteTarget) return;
 
-        setDeleting(true);
-        setError("");
-
         try {
+            setDeleting(true);
+            setError("");
+
             await fileAPI.deleteFile(deleteTarget.id);
 
             setFiles((previousFiles) => {
@@ -165,7 +165,6 @@ function MyFiles({ onShare, userId, onFilesChange, onUploadClick }) {
             setDeleting(false);
         }
     };
-
     const formatSize = (bytes) => {
         if (!bytes) return "0 B";
 

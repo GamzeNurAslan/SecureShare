@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fileAPI, getApiErrorMessage } from "../services/api";
 
 function ShareFile({ file, onClose }) {
@@ -8,12 +8,16 @@ function ShareFile({ file, onClose }) {
     const [canDownload, setCanDownload] = useState(false);
     const [expiresAt, setExpiresAt] = useState("");
     const [permissions, setPermissions] = useState([]);
+    const [permissionsLoading, setPermissionsLoading] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [editingUserId, setEditingUserId] = useState(null);
+    const [revokeTarget, setRevokeTarget] = useState(null);
     const [users, setUsers] = useState([]);
     const [searchingUsers, setSearchingUsers] = useState(false);
+    const searchTimeout = useRef(null);
+    const searchRequestId = useRef(0);
 
     const [minDate] = useState(() => {
         const date = new Date();
@@ -35,6 +39,10 @@ function ShareFile({ file, onClose }) {
                 if (active) {
                     setError(getApiErrorMessage(err));
                 }
+            } finally {
+                if (active) {
+                    setPermissionsLoading(false);
+                }
             }
         };
 
@@ -45,30 +53,61 @@ function ShareFile({ file, onClose }) {
         };
     }, [file.id]);
 
-    const fetchPermissions = async () => {
-        const response = await fileAPI.getPermissions(file.id);
-        setPermissions(response.data.permissions || []);
-    };
+    useEffect(() => {
+        return () => {
+            clearTimeout(searchTimeout.current);
+            searchRequestId.current++;
+        };
+    }, []);
 
-    const handleSearchUsers = async (value) => {
+    const fetchPermissions = async () => {
+        try {
+            setPermissionsLoading(true);
+
+            const response = await fileAPI.getPermissions(file.id);
+            setPermissions(response.data.permissions || []);
+        } finally {
+            setPermissionsLoading(false);
+        }
+    };
+    const handleSearchUsers = (value) => {
         setEmail(value);
         setUsers([]);
         setError("");
 
+        // Önceki zamanlayıcıyı iptal et
+        clearTimeout(searchTimeout.current);
+
+        // Önceki isteklerin sonuçlarını geçersiz kıl
+        searchRequestId.current++;
+
         if (value.trim().length < 3) {
+            setSearchingUsers(false);
             return;
         }
 
-        try {
-            setSearchingUsers(true);
+        setSearchingUsers(true);
 
-            const response = await fileAPI.searchUsers(value);
-            setUsers(response.data.users || []);
-        } catch (err) {
-            setError(getApiErrorMessage(err));
-        } finally {
-            setSearchingUsers(false);
-        }
+        const currentRequestId = searchRequestId.current;
+
+        searchTimeout.current = setTimeout(async () => {
+            try {
+                const response = await fileAPI.searchUsers(value);
+
+                // Yalnızca en son aramanın sonucunu göster
+                if (currentRequestId === searchRequestId.current) {
+                    setUsers(response.data.users || []);
+                }
+            } catch (err) {
+                if (currentRequestId === searchRequestId.current) {
+                    setError(getApiErrorMessage(err));
+                }
+            } finally {
+                if (currentRequestId === searchRequestId.current) {
+                    setSearchingUsers(false);
+                }
+            }
+        }, 400);
     };
 
     const resetForm = () => {
@@ -158,12 +197,18 @@ function ShareFile({ file, onClose }) {
         setMessage("");
     };
 
-    const handleRevokePermission = async (userId) => {
-        const confirmed = window.confirm(
-            "Bu kullanıcının dosya erişim iznini kaldırmak istiyor musunuz?"
-        );
+    // İzin kaldırma onay penceresini aç
+    const handleRevokePermission = (permission) => {
+        setError("");
+        setMessage("");
+        setRevokeTarget(permission);
+    };
 
-        if (!confirmed) return;
+    // Kullanıcının iznini gerçekten kaldır
+    const confirmRevokePermission = async () => {
+        if (!revokeTarget) return;
+
+        const userId = revokeTarget.user_id;
 
         try {
             setLoading(true);
@@ -178,9 +223,12 @@ function ShareFile({ file, onClose }) {
                 resetForm();
             }
 
+            setRevokeTarget(null);
+
             await fetchPermissions();
         } catch (err) {
             setError(getApiErrorMessage(err));
+            setRevokeTarget(null);
         } finally {
             setLoading(false);
         }
@@ -271,8 +319,12 @@ function ShareFile({ file, onClose }) {
                                             type="button"
                                             key={user.id}
                                             onClick={() => {
+                                                clearTimeout(searchTimeout.current);
+                                                searchRequestId.current++;
+
                                                 setEmail(user.email);
                                                 setUsers([]);
+                                                setSearchingUsers(false);
                                             }}
                                         >
                                             {user.email}
@@ -349,7 +401,11 @@ function ShareFile({ file, onClose }) {
                             <span>{permissions.length}</span>
                         </div>
 
-                        {permissions.length === 0 ? (
+                        {permissionsLoading ? (
+                            <div className="permission-empty-state">
+                                <p>İzinler yükleniyor...</p>
+                            </div>
+                        ) : permissions.length === 0 ? (
                             <div className="permission-empty-state">
                                 <span aria-hidden="true">✦</span>
                                 <strong>Henüz kimse eklenmedi</strong>
@@ -388,7 +444,7 @@ function ShareFile({ file, onClose }) {
                                                 type="button"
                                                 className="revoke-button"
                                                 disabled={loading}
-                                                onClick={() => handleRevokePermission(permission.user_id)}
+                                                onClick={() => handleRevokePermission(permission)}
                                             >
                                                 Kaldır
                                             </button>
@@ -400,6 +456,52 @@ function ShareFile({ file, onClose }) {
                     </aside>
                 </div>
             </div>
+            {revokeTarget && (
+                <div className="modal-overlay" role="presentation">
+                    <div
+                        className="confirmation-modal"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="revoke-title"
+                        aria-describedby="revoke-description"
+                    >
+                        <h3 id="revoke-title">
+                            Erişim iznini kaldır
+                        </h3>
+
+                        <p id="revoke-description">
+                            <strong>{revokeTarget.email}</strong> kullanıcısının
+                            bu dosyaya erişim iznini kaldırmak istediğinize
+                            emin misiniz?
+                        </p>
+
+                        <p>
+                            Bu kullanıcı artık kendisine verilen izinlerle
+                            dosyaya erişemeyecektir.
+                        </p>
+
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="cancel-button"
+                                onClick={() => setRevokeTarget(null)}
+                                disabled={loading}
+                            >
+                                Vazgeç
+                            </button>
+
+                            <button
+                                type="button"
+                                className="confirm-delete-button"
+                                onClick={confirmRevokePermission}
+                                disabled={loading}
+                            >
+                                {loading ? "Kaldırılıyor..." : "Erişimi Kaldır"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

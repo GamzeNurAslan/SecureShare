@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { fileAPI, getApiErrorMessage } from "../services/api";
 
@@ -8,9 +7,14 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
     const [error, setError] = useState("");
 
     const handleFileChange = async (event) => {
-        const selectedFile = event.target.files?.[0];
+        const input = event.target;
+        const selectedFile = input.files?.[0];
 
         if (!selectedFile) return;
+
+        setError("");
+        setMessage("");
+
         const allowedExtensions = [
             "pdf", "png", "jpg", "jpeg", "txt", "docx", "xlsx"
         ];
@@ -19,37 +23,36 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
 
         if (!allowedExtensions.includes(extension)) {
             setError("Bu dosya türü desteklenmiyor.");
-            event.target.value = "";
+            input.value = "";
             return;
         }
 
         if (selectedFile.size === 0) {
             setError("Boş dosya yüklenemez.");
-            event.target.value = "";
+            input.value = "";
             return;
         }
 
         if (selectedFile.size > 50 * 1024 * 1024) {
             setError("Dosya boyutu 50 MB sınırını aşamaz.");
-            event.target.value = "";
+            input.value = "";
             return;
         }
 
         try {
             setLoading(true);
-            setError("");
-            setMessage("");
 
             await fileAPI.uploadFile(selectedFile);
 
             setMessage("Dosya başarıyla yüklendi.");
-            event.target.value = "";
+            input.value = "";
 
             if (onUploadSuccess) {
                 onUploadSuccess();
             }
         } catch (err) {
             setError(getApiErrorMessage(err));
+            input.value = "";
         } finally {
             setLoading(false);
         }
@@ -57,8 +60,12 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
 
     return (
         <div className="upload-container">
-            <p className="dashboard-eyebrow">GÜVENLİ DOSYA YÖNETİMİ</p>
+            <p className="dashboard-eyebrow">
+                GÜVENLİ DOSYA YÖNETİMİ
+            </p>
+
             <h1>Dosyalarım</h1>
+
             <p className="upload-description">
                 Şifrelenmiş dosyalarınızı güvenle yönetin ve paylaşın.
             </p>
@@ -69,6 +76,7 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg,.txt,.docx,.xlsx"
                 onChange={handleFileChange}
+                disabled={loading}
             />
 
             <button
@@ -81,8 +89,23 @@ function UploadFile({ onUploadSuccess, fileInputRef }) {
                 {loading ? "Dosya yükleniyor..." : "Dosya Yükle"}
             </button>
 
-            {message && <p className="success-message">{message}</p>}
-            {error && <p className="error-message">{error}</p>}
+            {loading && (
+                <p className="upload-status" role="status" aria-live="polite">
+                    Dosyanız yükleniyor, lütfen bekleyin.
+                </p>
+            )}
+
+            {message && (
+                <p className="success-message" role="status">
+                    {message}
+                </p>
+            )}
+
+            {error && (
+                <p className="error-message" role="alert">
+                    {error}
+                </p>
+            )}
         </div>
     );
 }
