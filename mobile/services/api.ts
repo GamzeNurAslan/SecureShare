@@ -1,4 +1,15 @@
-export const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "");
+import { Platform } from "react-native";
+
+const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+const fallbackApiUrl =
+  Platform.OS === "web" ? "http://127.0.0.1:3001" : "http://192.168.1.100:3001";
+const normalizedApiUrl = configuredApiUrl
+  ? /^https?:\/\//i.test(configuredApiUrl)
+    ? configuredApiUrl
+    : `http://${configuredApiUrl}`
+  : fallbackApiUrl;
+
+export const API_URL = normalizedApiUrl.replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -22,10 +33,13 @@ function getErrorMessage(data: unknown, fallback: string) {
   if (
     data &&
     typeof data === "object" &&
-    "message" in data &&
-    typeof (data as { message: unknown }).message === "string"
+    ("message" in data || "error" in data)
   ) {
-    return (data as { message: string }).message;
+    const message = (data as { message?: unknown }).message;
+    const error = (data as { error?: unknown }).error;
+
+    if (typeof message === "string") return message;
+    if (typeof error === "string") return error;
   }
 
   return fallback;
