@@ -11,7 +11,9 @@ import {
 import { ApiError } from "../services/api";
 import { downloadSecureFile } from "../services/downloadFile";
 import {
+  getFileAuditHistory,
   getFileDetails,
+  type AuditLog,
   type FileDetails,
 } from "../services/fileDetails";
 
@@ -20,6 +22,17 @@ type FileDetailScreenProps = {
   fileId: string;
   onBack: () => void;
   onSessionExpired: () => void;
+};
+
+export type MobileFile = {
+  id: string;
+  original_name: string;
+  mime_type?: string | null;
+  size_bytes?: number;
+  created_at?: string;
+  owner_id?: string;
+  can_read?: boolean;
+  can_download?: boolean;
 };
 
 function formatBytes(bytes: number) {
@@ -52,6 +65,15 @@ function getFileExtension(fileName: string) {
   return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : "DOSYA";
 }
 
+function shortenHash(hash: string | null) {
+  if (!hash) return "İlk kayıt";
+  return hash.length > 24 ? `${hash.slice(0, 24)}…` : hash;
+}
+
+function auditActor(log: AuditLog) {
+  return log.actor_email || log.actor_user_id || "Sistem";
+}
+
 export default function FileDetailScreen({
   token,
   fileId,
@@ -59,9 +81,12 @@ export default function FileDetailScreen({
   onSessionExpired,
 }: FileDetailScreenProps) {
   const [file, setFile] = useState<FileDetails | null>(null);
+  const [history, setHistory] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [historyMessage, setHistoryMessage] = useState("");
   const [downloadMessage, setDownloadMessage] = useState("");
 
   const loadFileDetails = useCallback(async () => {
@@ -91,6 +116,33 @@ export default function FileDetailScreen({
   useEffect(() => {
     loadFileDetails();
   }, [loadFileDetails]);
+
+  const loadAuditHistory = useCallback(async () => {
+    setIsHistoryLoading(true);
+    setHistoryMessage("");
+
+    try {
+      const response = await getFileAuditHistory(token, fileId);
+      setHistory(Array.isArray(response.history) ? response.history : []);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        onSessionExpired();
+        return;
+      }
+
+      setHistoryMessage(
+        error instanceof Error
+          ? error.message
+          : "İşlem geçmişi yüklenemedi."
+      );
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [fileId, onSessionExpired, token]);
+
+  useEffect(() => {
+    loadAuditHistory();
+  }, [loadAuditHistory]);
 
   async function handleDownload() {
     if (!file || !file.can_download) {
@@ -178,6 +230,61 @@ export default function FileDetailScreen({
           <Text style={styles.badgeText}>
             {file.is_owner ? "SİZİN DOSYANIZ" : "SİZİNLE PAYLAŞILDI"}
           </Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeading}>
+            <View>
+              <Text style={styles.cardEyebrow}>SECURESHARE</Text>
+              <Text style={styles.cardTitle}>İşlem geçmişi</Text>
+            </View>
+            <TouchableOpacity onPress={loadAuditHistory}>
+              <Text style={styles.refreshText}>Yenile</Text>
+            </TouchableOpacity>
+          </View>
+
+          {isHistoryLoading ? (
+            <View style={styles.historyLoading}>
+              <ActivityIndicator color="#5d9cff" />
+              <Text style={styles.permissionText}>Geçmiş yükleniyor...</Text>
+            </View>
+          ) : historyMessage ? (
+            <View style={styles.historyEmpty}>
+              <Text style={styles.historyEmptyTitle}>Geçmiş görüntülenemedi</Text>
+              <Text style={styles.historyEmptyText}>{historyMessage}</Text>
+            </View>
+          ) : history.length === 0 ? (
+            <View style={styles.historyEmpty}>
+              <Text style={styles.historyEmptyIcon}>◌</Text>
+              <Text style={styles.historyEmptyTitle}>Henüz işlem yok</Text>
+              <Text style={styles.historyEmptyText}>
+                Bu dosya için görüntülenecek bir işlem kaydı bulunmuyor.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.historyList}>
+              {history.map((log) => (
+                <View style={styles.historyItem} key={String(log.id)}>
+                  <View style={styles.historyDot} />
+                  <View style={styles.historyBody}>
+                    <View style={styles.historyTitleRow}>
+                      <Text style={styles.historyAction}>{log.action}</Text>
+                      <Text style={styles.historyResult}>{log.result}</Text>
+                    </View>
+                    <Text style={styles.historyMeta}>
+                      {auditActor(log)} · {formatDate(log.created_at)}
+                    </Text>
+                    <Text style={styles.hashText}>
+                      Önceki: {shortenHash(log.previous_hash)}
+                    </Text>
+                    <Text style={styles.hashText}>
+                      Kayıt: {shortenHash(log.entry_hash)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -349,6 +456,88 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "800",
+  },
+  cardHeading: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  cardEyebrow: {
+    color: "#72adff",
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  refreshText: {
+    color: "#75a9ff",
+    fontWeight: "800",
+    padding: 4,
+  },
+  historyLoading: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 16,
+  },
+  historyEmpty: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 18,
+  },
+  historyEmptyIcon: {
+    color: "#75a9ff",
+    fontSize: 30,
+  },
+  historyEmptyTitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  historyEmptyText: {
+    color: "#a8badb",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  historyList: {
+    gap: 14,
+  },
+  historyItem: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  historyDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#5d9cff",
+    marginTop: 5,
+  },
+  historyBody: {
+    flex: 1,
+    gap: 4,
+  },
+  historyTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  historyAction: {
+    color: "#ffffff",
+    fontWeight: "800",
+    flex: 1,
+  },
+  historyResult: {
+    color: "#70e3ab",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  historyMeta: {
+    color: "#a8badb",
+    fontSize: 12,
+  },
+  hashText: {
+    color: "#7189b3",
+    fontSize: 11,
   },
   infoRow: {
     gap: 4,

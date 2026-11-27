@@ -6,11 +6,11 @@ Bu hafta audit log kayıtlarının güvenilir hâle getirilmesi, hata durumları
 
 ## Büşra’nın Görevleri
 
-- [ ] Audit log kayıtlarında `previous_hash` ve `entry_hash` alanlarını kullanacak hash zinciri yapısını oluşturmak.
-- [ ] Her yeni audit kaydını önceki kayda bağlamak.
-- [ ] Dosya sahibi için kendi dosyalarına ait işlem geçmişini görüntüleme endpoint’i eklemek.
-- [ ] Veritabanı veya MinIO bağlantı hatalarında anlaşılır ve güvenli API hata cevapları döndürmek.
-- [ ] Dosya yükleme sırasında hata oluşursa yarım kalan MinIO nesnesi veya metadata kaydını temizlemek.
+- [x] Audit log kayıtlarında `previous_hash` ve `entry_hash` alanlarını kullanacak hash zinciri yapısını oluşturmak.
+- [x] Her yeni audit kaydını önceki kayda bağlamak.
+- [x] Dosya sahibi için kendi dosyalarına ait işlem geçmişini görüntüleme endpoint’i eklemek.
+- [x] Veritabanı veya MinIO bağlantı hatalarında anlaşılır ve güvenli API hata cevapları döndürmek.
+- [x] Dosya yükleme sırasında hata oluşursa yarım kalan MinIO nesnesi veya metadata kaydını temizlemek.
 
 ### Web — Büşra
 
@@ -28,28 +28,28 @@ Bu hafta audit log kayıtlarının güvenilir hâle getirilmesi, hata durumları
 
 ## Gamze’nin Görevleri
 
-- [ ] Mobil uygulamada dosya detayına işlem geçmişi/audit kayıtları alanı eklemek.
-- [ ] Boş işlem geçmişi, bağlantı hatası ve erişim hatası ekranlarını hazırlamak.
+- [x] Mobil uygulamada dosya detayına işlem geçmişi/audit kayıtları alanı eklemek.
+- [x] Boş işlem geçmişi, bağlantı hatası ve erişim hatası ekranlarını hazırlamak.
 - [ ] Audit log ve hata senaryolarının test ekran görüntülerini almak.
-- [ ] Hafta raporu için yapılan güvenlik kontrollerini not etmek.
+- [x] Hafta raporu için yapılan güvenlik kontrollerini not etmek.
 
 ### Mobil — Gamze
 
-- [ ] Dosya işlem geçmişi görünümü
-- [ ] Boş durum, bağlantı hatası ve erişim reddedildi ekranları
-- [ ] Oturum süresi dolduğunda giriş ekranına yönlendirme
+- [x] Dosya işlem geçmişi görünümü
+- [x] Boş durum, bağlantı hatası ve erişim reddedildi ekranları
+- [x] Oturum süresi dolduğunda giriş ekranına yönlendirme
 
 ## Genel Kabul Kriterleri
 
-- [ ] Dosya işlemleri audit log’a kaydedilir.
-- [ ] Audit kaydı değiştirildiğinde hash zinciri doğrulaması başarısız olur.
-- [ ] MinIO veya PostgreSQL hatasında sistem kontrollü hata döndürür.
-- [ ] Başarısız yükleme sonrasında gereksiz MinIO nesnesi kalmaz.
-- [ ] Dosya sahibi yalnızca kendi dosyalarının işlem geçmişini görüntüleyebilir.
+- [x] Dosya işlemleri audit log’a kaydedilir.
+- [x] Audit kaydı değiştirildiğinde hash zinciri doğrulaması başarısız olur.
+- [x] MinIO veya PostgreSQL hatasında sistem kontrollü hata döndürür.
+- [x] Başarısız yükleme sonrasında gereksiz MinIO nesnesi kalmaz.
+- [x] Dosya sahibi yalnızca kendi dosyalarının işlem geçmişini görüntüleyebilir.
 
 ## Hafta Sonu Çıktıları
 
-- [ ] Hash zincirli audit log yapısı.
-- [ ] İşlem geçmişi endpoint’i ve mobil görünümü.
-- [ ] Hata temizleme mekanizması.
+- [x] Hash zincirli audit log yapısı.
+- [x] İşlem geçmişi endpoint’i ve mobil görünümü.
+- [x] Hata temizleme mekanizması.
 - [ ] Audit log ve hata test sonuçları.
