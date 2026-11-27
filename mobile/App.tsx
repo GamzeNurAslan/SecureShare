@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as DocumentPicker from "expo-document-picker";
@@ -89,7 +90,44 @@ function formatSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const ALLOWED_FILE_TYPES: Record<string, string[]> = {
+  pdf: ["application/pdf"],
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  txt: ["text/plain"],
+  docx: [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  xlsx: [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ],
+};
+
+function getFileExtension(fileName: string) {
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  return extension && extension !== fileName.toLowerCase() ? extension : "";
+}
+
+function isSupportedFileType(fileName: string, mimeType?: string | null) {
+  const extension = getFileExtension(fileName);
+  const allowedMimes = ALLOWED_FILE_TYPES[extension];
+
+  if (!allowedMimes) {
+    return false;
+  }
+
+  return (
+    !mimeType ||
+    mimeType === "application/octet-stream" ||
+    allowedMimes.includes(mimeType)
+  );
+}
+
 export default function App() {
+  const { width: viewportWidth } = useWindowDimensions();
+  const isCompactViewport = viewportWidth < 420;
   const [token, setToken] = useState<string | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -103,6 +141,7 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [filesLoading, setFilesLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -132,6 +171,8 @@ export default function App() {
         text: "#f6f8ff",
         muted: "#9db0d3",
         primary: "#2f6df6",
+        error: "#ff9ba8",
+        success: "#70e3ab",
       }
     : {
         background: "#eef4ff",
@@ -141,6 +182,8 @@ export default function App() {
         text: "#14213d",
         muted: "#617596",
         primary: "#2864e9",
+        error: "#b42318",
+        success: "#087443",
       };
 
   useEffect(() => {
@@ -160,6 +203,7 @@ export default function App() {
   async function loadFiles() {
     if (!token) return;
 
+    setFilesLoading(true);
     try {
       const data = await requestApi("/api/files", {
         method: "GET",
@@ -176,6 +220,8 @@ export default function App() {
       }
 
       setError(err instanceof Error ? err.message : "Dosyalar alınamadı.");
+    } finally {
+      setFilesLoading(false);
     }
   }
 
@@ -183,8 +229,15 @@ export default function App() {
     setError("");
     setMessage("");
 
-    if (!email.trim() || !password) {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail || !password) {
       setError("E-posta ve parola zorunludur.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Geçerli bir e-posta adresi girin.");
       return;
     }
 
@@ -194,8 +247,16 @@ export default function App() {
         return;
       }
 
-      if (password.length < 8) {
-        setError("Parola en az 8 karakter olmalıdır.");
+      if (
+        password.length < 12 ||
+        !/[a-z]/.test(password) ||
+        !/[A-Z]/.test(password) ||
+        !/\d/.test(password) ||
+        !/[^A-Za-z0-9]/.test(password)
+      ) {
+        setError(
+          "Parola en az 12 karakter olmalı; büyük harf, küçük harf, rakam ve sembol içermeli."
+        );
         return;
       }
 
@@ -211,11 +272,11 @@ export default function App() {
       const body = registerMode
         ? {
             fullName: fullName.trim(),
-            email: email.trim(),
+            email: normalizedEmail,
             password,
           }
         : {
-            email: email.trim(),
+            email: normalizedEmail,
             password,
           };
 
@@ -278,6 +339,25 @@ export default function App() {
       }
 
       const selectedFile = result.assets[0];
+      const selectedName = selectedFile.name || "dosya";
+
+      if (!isSupportedFileType(selectedName, selectedFile.mimeType)) {
+        setError(
+          "Bu dosya türü desteklenmiyor. PDF, PNG, JPG, TXT, DOCX veya XLSX seçin."
+        );
+        return;
+      }
+
+      if (selectedFile.size === 0) {
+        setError("Boş dosya yüklenemez.");
+        return;
+      }
+
+      if (selectedFile.size && selectedFile.size > MAX_FILE_SIZE) {
+        setError("Dosya boyutu 50 MB sınırını aşamaz.");
+        return;
+      }
+
       const formData = new FormData();
 
       if (Platform.OS === "web") {
@@ -287,12 +367,12 @@ export default function App() {
         (formData as any).append(
           "file",
           blob,
-          selectedFile.name || "dosya",
+          selectedName,
         );
       } else {
         (formData as any).append("file", {
           uri: selectedFile.uri,
-          name: selectedFile.name || "dosya",
+          name: selectedName,
           type: selectedFile.mimeType || "application/octet-stream",
         });
       }
@@ -331,6 +411,7 @@ export default function App() {
           <View
             style={[
               styles.card,
+                isCompactViewport && styles.cardCompact,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
@@ -346,17 +427,29 @@ export default function App() {
                   { borderColor: colors.border },
                 ]}
                 onPress={() => setDarkMode(!darkMode)}
+                accessibilityRole="button"
+                accessibilityLabel={darkMode ? "Açık moda geç" : "Koyu moda geç"}
               >
-                <Text>{darkMode ? "☀️ Açık mod" : "🌙 Koyu mod"}</Text>
+                <Text style={[styles.modeText, { color: colors.text }]}>
+                  {darkMode ? "☀️ Açık mod" : "🌙 Koyu mod"}
+                </Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.badge}>GÜVENLİ DOSYA PLATFORMU</Text>
 
-            <Text style={[styles.title, { color: colors.text }]}>
+            <Text
+              style={[
+                styles.title,
+                isCompactViewport && styles.titleCompact,
+                { color: colors.text },
+              ]}
+            >
               {registerMode
                 ? "Güvenli hesabınızı oluşturun"
-                : "Dosyalarınızın kontrolü sizde"}
+                : isCompactViewport
+                  ? "Dosyalarınızın\nkontrolü sizde"
+                  : "Dosyalarınızın kontrolü sizde"}
             </Text>
 
             <Text style={[styles.subtitle, { color: colors.muted }]}>
@@ -453,8 +546,16 @@ export default function App() {
               </>
             )}
 
-            {!!error && <Text style={styles.error}>{error}</Text>}
-            {!!message && <Text style={styles.success}>{message}</Text>}
+            {!!error && (
+              <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>
+                {error}
+              </Text>
+            )}
+            {!!message && (
+              <Text accessibilityRole="alert" style={[styles.success, { color: colors.success }]}>
+                {message}
+              </Text>
+            )}
 
             <TouchableOpacity
               style={[
@@ -479,6 +580,7 @@ export default function App() {
                 setError("");
                 setMessage("");
               }}
+              accessibilityRole="button"
             >
               <Text
                 style={[
@@ -526,8 +628,12 @@ export default function App() {
                 { borderColor: colors.border },
               ]}
               onPress={() => setDarkMode(!darkMode)}
+              accessibilityRole="button"
+              accessibilityLabel={darkMode ? "Açık moda geç" : "Koyu moda geç"}
             >
-              <Text>{darkMode ? "☀️ Açık mod" : "🌙 Koyu mod"}</Text>
+              <Text style={[styles.modeText, { color: colors.text }]}>
+                {darkMode ? "☀️ Açık mod" : "🌙 Koyu mod"}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={handleLogout}>
@@ -570,15 +676,30 @@ export default function App() {
             )}
           </TouchableOpacity>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
-          {!!message && <Text style={styles.success}>{message}</Text>}
+          {!!error && (
+            <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>
+              {error}
+            </Text>
+          )}
+          {!!message && (
+            <Text accessibilityRole="alert" style={[styles.success, { color: colors.success }]}>
+              {message}
+            </Text>
+          )}
         </View>
 
         <Text style={[styles.filesTitle, { color: colors.text }]}>
           Dosya kasanız
         </Text>
 
-        {files.length === 0 ? (
+        {filesLoading ? (
+          <View style={styles.loadingState} accessibilityRole="progressbar">
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.empty, { color: colors.muted }]}>
+              Dosyalarınız yükleniyor...
+            </Text>
+          </View>
+        ) : files.length === 0 ? (
           <View
             style={[
               styles.emptyState,
@@ -623,8 +744,12 @@ export default function App() {
             >
               <Text style={styles.fileIcon}>📄</Text>
 
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.fileName, { color: colors.text }]}>
+              <View style={styles.fileInfo}>
+                <Text
+                  style={[styles.fileName, { color: colors.text }]}
+                  numberOfLines={2}
+                  ellipsizeMode="middle"
+                >
                   {file.original_name}
                 </Text>
 
@@ -652,10 +777,10 @@ const styles = StyleSheet.create({
   centerContent: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
+    padding: 16,
   },
   dashboard: {
-    padding: 24,
+    padding: 16,
     paddingBottom: 60,
   },
   card: {
@@ -666,22 +791,30 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
   },
+  cardCompact: {
+    padding: 24,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 12,
   },
   logo: {
     color: "#4d91ff",
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "900",
+    flexShrink: 1,
   },
   modeButton: {
     paddingVertical: 11,
     paddingHorizontal: 15,
     borderRadius: 22,
     borderWidth: 1,
+  },
+  modeText: {
+    fontWeight: "800",
   },
   badge: {
     alignSelf: "flex-start",
@@ -696,8 +829,13 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 38,
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: "900",
+    flexShrink: 1,
+  },
+  titleCompact: {
+    fontSize: 30,
+    lineHeight: 36,
   },
   subtitle: {
     marginTop: 14,
@@ -736,17 +874,18 @@ const styles = StyleSheet.create({
   },
   error: {
     marginTop: 12,
-    color: "#ff7c8e",
     fontWeight: "700",
+    lineHeight: 20,
   },
   success: {
     marginTop: 12,
-    color: "#55d89a",
     fontWeight: "700",
+    lineHeight: 20,
   },
   actions: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 12,
   },
   logout: {
@@ -778,6 +917,12 @@ const styles = StyleSheet.create({
   empty: {
     alignSelf: "center",
     marginTop: 18,
+  },
+  loadingState: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 24,
   },
   emptyState: {
     width: "100%",
@@ -824,9 +969,14 @@ const styles = StyleSheet.create({
   fileIcon: {
     fontSize: 28,
   },
+  fileInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
   fileName: {
     fontSize: 16,
     fontWeight: "900",
+    flexShrink: 1,
   },
   fileMeta: {
     marginTop: 5,

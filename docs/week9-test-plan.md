@@ -6,17 +6,17 @@ Bu hafta sistemin güvenlik kontrolleri, giriş koruması, performansı ve otoma
 
 ## Büşra’nın Görevleri
 
-- [ ] Kayıt ve giriş endpoint’lerine istek sınırlandırma (rate limiting) eklemek.
-- [ ] Aynı hesap için art arda başarısız giriş denemelerini sınırlandırmak.
-- [ ] Dosya türü, boyutu ve zorunlu alan doğrulamalarını backend tarafında güçlendirmek.
-- [ ] API hata cevaplarında JWT, parola, anahtar veya sistem detayı bulunmadığını kontrol etmek.
-- [ ] CORS ayarlarını yalnızca kullanılacak web ve mobil istemcileri destekleyecek şekilde düzenlemek.
+- [x] Kayıt ve giriş endpoint’lerine istek sınırlandırma (rate limiting) eklemek.
+- [x] Aynı hesap için art arda başarısız giriş denemelerini sınırlandırmak.
+- [x] Dosya türü, boyutu ve zorunlu alan doğrulamalarını backend tarafında güçlendirmek.
+- [x] API hata cevaplarında JWT, parola, anahtar veya sistem detayı bulunmadığını kontrol etmek.
+- [x] CORS ayarlarını yalnızca kullanılacak web ve mobil istemcileri destekleyecek şekilde düzenlemek.
 
 ### Web — Büşra
 
-- [ ] Masaüstü, tablet ve mobil tarayıcı görünümünü düzenleme
-- [ ] Form doğrulama mesajlarını iyileştirme
-- [ ] Buton, renk, yazı boyutu ve boşlukları tutarlı hâle getirme
+- [x] Masaüstü, tablet ve mobil tarayıcı görünümünü düzenleme
+- [x] Form doğrulama mesajlarını iyileştirme
+- [x] Buton, renk, yazı boyutu ve boşlukları tutarlı hâle getirme
 
 ## Hava’nın Görevleri
 
@@ -28,31 +28,31 @@ Bu hafta sistemin güvenlik kontrolleri, giriş koruması, performansı ve otoma
 
 ## Gamze’nin Görevleri
 
-- [ ] Mobil uygulamada geçersiz parola, hatalı giriş ve geçersiz dosya türü mesajlarını test etmek.
-- [ ] Mobil ve web arayüzlerinde hata mesajlarının anlaşılır olduğunu kontrol etmek.
-- [ ] Giriş, yükleme ve dosya listeleme işlemlerinin kullanıcı deneyimini gözden geçirmek.
-- [ ] Performans ve güvenlik test ekran görüntülerini toplamak.
-- [ ] 9. hafta rapor notlarını hazırlamak.
+- [x] Mobil uygulamada geçersiz parola, hatalı giriş ve geçersiz dosya türü mesajlarını test etmek.
+- [x] Mobil ve web arayüzlerinde hata mesajlarının anlaşılır olduğunu kontrol etmek.
+- [x] Giriş, yükleme ve dosya listeleme işlemlerinin kullanıcı deneyimini gözden geçirmek.
+- [x] Performans ve güvenlik test ekran görüntülerini toplamak. Kanıt: `docs/week9-test-evidence.html`
+- [x] 9. hafta rapor notlarını hazırlamak.
 
 ### Mobil — Gamze
 
-- [ ] Farklı telefon ekranlarında görünümü kontrol etme
-- [ ] Uzun dosya adlarının taşmasını düzenleme
-- [ ] Yükleme/indirme durum göstergelerini iyileştirme
-- [ ] Erişilebilir renk ve metin boyutlarını kontrol etme
+- [x] Farklı telefon ekranlarında görünümü kontrol etme (360 px, 390 px ve 768 px görünümleri doğrulandı)
+- [x] Uzun dosya adlarının taşmasını düzenleme
+- [x] Yükleme/indirme durum göstergelerini iyileştirme
+- [x] Erişilebilir renk ve metin boyutlarını kontrol etme
 
 ## Genel Kabul Kriterleri
 
-- [ ] Art arda başarısız giriş denemeleri sınırlandırılır.
-- [ ] Geçersiz JWT ile istek yapılamaz.
-- [ ] Uygun olmayan dosya türü veya 50 MB üzerindeki dosya reddedilir.
-- [ ] API hata mesajları gizli bilgi içermez.
+- [x] Art arda başarısız giriş denemeleri sınırlandırılır.
+- [x] Geçersiz JWT ile istek yapılamaz.
+- [x] Uygun olmayan dosya türü veya 50 MB üzerindeki dosya reddedilir.
+- [x] API hata mesajları gizli bilgi içermez.
 - [ ] Otomatik testler başarılı şekilde çalışır.
-- [ ] Temel API işlemleri hedeflenen sürelerde tamamlanır.
+- [x] Temel API işlemleri hedeflenen sürelerde tamamlanır. Kanıt: `docs/week9-test-evidence.html` (10/10 `/health` isteği, ortalama 9,51 ms)
 
 ## Hafta Sonu Çıktıları
 
-- [ ] Rate limiting ve giriş koruması.
-- [ ] Güçlendirilmiş doğrulama kontrolleri.
+- [x] Rate limiting ve giriş koruması.
+- [x] Güçlendirilmiş doğrulama kontrolleri.
 - [ ] Entegrasyon ve güvenlik testleri.
-- [ ] Performans ölçüm notları.
+- [x] Performans ölçüm notları. Kanıt: `docs/week9-test-evidence.html`
