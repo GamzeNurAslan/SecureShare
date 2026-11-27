@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -12,20 +12,25 @@ import {
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as DocumentPicker from "expo-document-picker";
-
-const API_BASE_URL =
-  Platform.OS === 'web'
-    ? 'http://127.0.0.1:3000'
-    : 'http://192.168.1.100:3000';
+import { API_URL } from "./services/api";
+import FileDetailScreen, {
+  type MobileFile,
+} from "./components/FileDetailScreen";
 
 const TOKEN_KEY = "secureshare-token";
 
-type FileItem = {
-  id: string;
-  original_name: string;
-  size_bytes?: number;
-  created_at?: string;
-};
+type FileItem = MobileFile;
+
+class RequestError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "RequestError";
+    this.status = status;
+    Object.setPrototypeOf(this, RequestError.prototype);
+  }
+}
 
 async function saveToken(token: string) {
   if (Platform.OS === "web") {
@@ -52,14 +57,25 @@ async function removeToken() {
 }
 
 async function requestApi(path: string, options: RequestInit = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, options);
+  } catch {
+    throw new RequestError(
+      0,
+      "Sunucuya bağlanılamadı. Backend'in çalıştığını ve API adresini kontrol edin."
+    );
+  }
+
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
+    throw new RequestError(
+      response.status,
       data.error ||
         data.message ||
-        `İşlem başarısız oldu. Kod: ${response.status}`,
+        `İşlem başarısız oldu. Kod: ${response.status}`
     );
   }
 
@@ -76,6 +92,7 @@ function formatSize(bytes?: number) {
 export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
   const [registerMode, setRegisterMode] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -88,6 +105,23 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  const clearAuthState = useCallback(async () => {
+    await removeToken();
+    setToken(null);
+    setSelectedFile(null);
+    setFiles([]);
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setMessage("");
+    setError("");
+  }, []);
+
+  const handleSessionExpired = useCallback(async () => {
+    await clearAuthState();
+    setError("Oturumunuz sona erdi. Lütfen yeniden giriş yapın.");
+  }, [clearAuthState]);
 
   const colors = darkMode
     ? {
@@ -136,6 +170,11 @@ export default function App() {
 
       setFiles(Array.isArray(data) ? data : data.files || []);
     } catch (err) {
+      if (err instanceof RequestError && err.status === 401) {
+        await handleSessionExpired();
+        return;
+      }
+
       setError(err instanceof Error ? err.message : "Dosyalar alınamadı.");
     }
   }
@@ -218,14 +257,7 @@ export default function App() {
   }
 
   async function handleLogout() {
-    await removeToken();
-    setToken(null);
-    setFiles([]);
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-    setMessage("");
-    setError("");
+    await clearAuthState();
   }
 
   async function handleUpload() {
@@ -276,6 +308,11 @@ export default function App() {
       setMessage("Dosya başarıyla yüklendi.");
       await loadFiles();
     } catch (err) {
+      if (err instanceof RequestError && err.status === 401) {
+        await handleSessionExpired();
+        return;
+      }
+
       setError(err instanceof Error ? err.message : "Dosya yüklenemedi.");
     } finally {
       setLoading(false);
@@ -460,6 +497,17 @@ export default function App() {
     );
   }
 
+  if (selectedFile) {
+    return (
+      <FileDetailScreen
+        token={token}
+        fileId={selectedFile.id}
+        onBack={() => setSelectedFile(null)}
+        onSessionExpired={handleSessionExpired}
+      />
+    );
+  }
+
   return (
     <SafeAreaView
       style={[
@@ -531,12 +579,37 @@ export default function App() {
         </Text>
 
         {files.length === 0 ? (
-          <Text style={[styles.empty, { color: colors.muted }]}>
-            Henüz dosya bulunmuyor.
-          </Text>
+          <View
+            style={[
+              styles.emptyState,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={styles.emptyStateIcon}>⌁</Text>
+            <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+              Güvenli kasanız hazır
+            </Text>
+            <Text style={[styles.empty, { color: colors.muted }]}>
+              İlk dosyanızı şifreleyerek kasanıza ekleyin.
+            </Text>
+            <TouchableOpacity
+              style={[styles.secondaryAction, { borderColor: colors.border }]}
+              onPress={handleUpload}
+              disabled={loading}
+            >
+              <Text
+                style={[styles.secondaryActionText, { color: colors.primary }]}
+              >
+                İlk dosyayı yükle
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           files.map((file) => (
-            <View
+            <TouchableOpacity
               key={file.id}
               style={[
                 styles.file,
@@ -545,6 +618,8 @@ export default function App() {
                   borderColor: colors.border,
                 },
               ]}
+              activeOpacity={0.82}
+              onPress={() => setSelectedFile(file)}
             >
               <Text style={styles.fileIcon}>📄</Text>
 
@@ -556,10 +631,13 @@ export default function App() {
                 <Text style={[styles.fileMeta, { color: colors.muted }]}>
                   {formatSize(file.size_bytes)}
                 </Text>
+                <Text style={[styles.detailsHint, { color: colors.primary }]}>
+                  Detaylar ve işlem geçmişi ›
+                </Text>
               </View>
 
               <Text style={styles.encrypted}>ŞİFRELİ</Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
@@ -701,6 +779,35 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 18,
   },
+  emptyState: {
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
+    alignItems: "center",
+    padding: 28,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  emptyStateIcon: {
+    color: "#72adff",
+    fontSize: 42,
+    fontWeight: "800",
+  },
+  emptyStateTitle: {
+    marginTop: 8,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  secondaryAction: {
+    marginTop: 18,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+  },
+  secondaryActionText: {
+    fontWeight: "800",
+  },
   file: {
     width: "100%",
     maxWidth: 1040,
@@ -723,6 +830,11 @@ const styles = StyleSheet.create({
   },
   fileMeta: {
     marginTop: 5,
+  },
+  detailsHint: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: "800",
   },
   encrypted: {
     color: "#55d89a",
