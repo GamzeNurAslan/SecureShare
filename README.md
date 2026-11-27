@@ -156,7 +156,14 @@ npm install
 npm run web
 ```
 
-Fiziksel telefonla testte `localhost` telefonun kendisini gösterir. Bu durumda `mobile/App.tsx` içindeki API adresini bilgisayarın yerel IP adresiyle değiştirin ve backend'i ağdan erişilebilen bir adreste çalıştırın.
+Fiziksel telefonla testte `localhost` telefonun kendisini gösterir. Bu nedenle `mobile/.env` dosyasını oluşturup bilgisayarın yerel IP adresini ve backend portunu yazın:
+
+```powershell
+Copy-Item .env.example .env
+# mobile/.env içinde örnek: EXPO_PUBLIC_API_URL=http://192.168.1.25:3001
+```
+
+Telefon ve bilgisayar aynı ağa bağlı olmalı; `.env` dosyasını Git'e göndermeyin. API adresi değiştiğinde Expo'yu `npx expo start --web --clear` ile yeniden başlatın.
 
 ## REST API
 
@@ -177,6 +184,16 @@ Tüm `/api/files` uçları JWT gerektirir.
 | GET | `/api/files/:id/permissions` | Dosya sahibinin izinleri görüntülemesi |
 | POST | `/api/files/:id/permissions` | READ/DOWNLOAD izni verme veya güncelleme |
 | DELETE | `/api/files/:id/permissions/:userId` | İzni kaldırma |
+| GET | `/api/files/:id/details` | Dosya detaylarını ve izin özetini görüntüleme |
+| GET | `/api/files/:id/history` | Yalnızca dosya sahibinin işlem geçmişini görüntülemesi |
+
+## Week 11 teslim dokümanları
+
+- [Final teknik raporu](docs/final-rapor.md): mimari, görev dağılımı, güvenlik modeli ve test sonuçları.
+- [Sunum taslağı](docs/final-sunum.md): proje tanıtımı ve demo akışı için slayt içeriği.
+- [Final demo senaryosu](docs/final-demo-senaryosu.md): kayıt → giriş → yükleme → paylaşma → indirme adımları.
+- [Uçtan uca test sonucu](docs/week11-e2e-test-result.md): yetkili erişim, sahiplik ve audit kanıtları.
+- [Week 11 görev planı](docs/week11-test-plan.md): tamamlanan işler ve açık test notları.
 
 ## Testler ve kalite kontrolleri
 
@@ -187,6 +204,7 @@ npm test
 
 # Web
 cd ../web
+npm run build
 npm run lint
 
 # Mobil TypeScript kontrolü
@@ -194,7 +212,13 @@ cd ../mobile
 npx tsc --noEmit
 ```
 
+Week 11 uçtan uca testinde kayıt, giriş, yükleme, paylaşma, listeleme, detay, indirme ve dosya sahibi işlem geçmişi akışı başarılıdır. Backend testlerinde 94 testten 93’ü başarılıdır; kalan birim test gerçek PostgreSQL Pool bağlantısı beklediği için ayrıca takip edilmelidir. Ayrıntılı sonuçlar [week11-e2e-test-result.md](docs/week11-e2e-test-result.md) dosyasındadır.
+
 İstemci sınırı denetimi; web ve mobil uygulamaların yalnızca REST API ile haberleştiğini, sunucu sırlarına ve altyapı servislerine doğrudan erişmediğini doğrular. Ayrıntı için [client-api-boundary-report.md](docs/client-api-boundary-report.md) dosyasına bakın.
+
+## Yedekleme ve geri yükleme
+
+PostgreSQL metadata kayıtları ile MinIO'daki şifreli dosyalar birlikte yedeklenmelidir. PowerShell komutları ve geri yükleme adımları için [yedekleme/geri yükleme prosedürüne](docs/backup-restore.md) bakın.
 
 ## Geliştirme notları
 
