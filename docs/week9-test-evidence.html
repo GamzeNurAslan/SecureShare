@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>SecureShare — 9. Hafta Test Kanıtı</title>
+  <style>
+    :root { color-scheme: dark; font-family: Segoe UI, Arial, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #070b1b; color: #f6f8ff; }
+    main { width: min(880px, calc(100% - 40px)); margin: 48px auto; }
+    .eyebrow { color: #72adff; font-weight: 800; letter-spacing: .08em; }
+    h1 { margin: 10px 0 8px; font-size: 34px; }
+    .muted { color: #a8badb; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+    .card { padding: 22px; border: 1px solid #31528b; border-radius: 18px; background: #111a31; }
+    .card h2 { margin: 0 0 14px; font-size: 18px; }
+    .value { color: #70e3ab; font-size: 30px; font-weight: 900; }
+    .check { margin: 10px 0 0; color: #cbd8ef; }
+    .check strong { color: #70e3ab; }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } main { margin: 28px auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">SECURESHARE · 9. HAFTA</div>
+    <h1>Performans ve güvenlik test kanıtı</h1>
+    <p class="muted">Yerel backend: http://127.0.0.1:3001 · Ölçüm: 10 sağlık isteği</p>
+    <section class="grid">
+      <article class="card">
+        <h2>Performans — /health</h2>
+        <div class="value">9,51 ms</div>
+        <p class="muted">Ortalama yanıt süresi</p>
+        <p class="check"><strong>✓</strong> En hızlı: 1,11 ms</p>
+        <p class="check"><strong>✓</strong> En yavaş: 75,38 ms</p>
+        <p class="check"><strong>✓</strong> 10/10 istek başarılı</p>
+      </article>
+      <article class="card">
+        <h2>Güvenlik kontrolleri</h2>
+        <div class="value">401</div>
+        <p class="muted">Geçersiz JWT ile /api/files yanıtı</p>
+        <p class="check"><strong>✓</strong> Yetkisiz istek reddedildi</p>
+        <p class="check"><strong>✓</strong> UI geçersiz e-posta uyarısı gösterildi</p>
+        <p class="check"><strong>✓</strong> Token/parola ekran görüntüsünde yok</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

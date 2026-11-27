@@ -219,7 +219,13 @@ export default function FileDetailScreen({
           </View>
 
           <View style={styles.fileTitleArea}>
-            <Text style={styles.fileName}>{file.original_name}</Text>
+            <Text
+              style={styles.fileName}
+              numberOfLines={2}
+              ellipsizeMode="middle"
+            >
+              {file.original_name}
+            </Text>
             <Text style={styles.fileMeta}>
               {formatBytes(file.size_bytes)} · {formatDate(file.created_at)}
             </Text>
@@ -268,7 +274,13 @@ export default function FileDetailScreen({
                   <View style={styles.historyDot} />
                   <View style={styles.historyBody}>
                     <View style={styles.historyTitleRow}>
-                      <Text style={styles.historyAction}>{log.action}</Text>
+                      <Text
+                        style={styles.historyAction}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                      >
+                        {log.action}
+                      </Text>
                       <Text style={styles.historyResult}>{log.result}</Text>
                     </View>
                     <Text style={styles.historyMeta}>
@@ -377,8 +389,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#070d1e",
   },
   content: {
-    padding: 20,
+    padding: 16,
     gap: 16,
+    paddingBottom: 40,
   },
   centerContent: {
     flex: 1,
@@ -419,11 +432,13 @@ const styles = StyleSheet.create({
   },
   fileTitleArea: {
     flex: 1,
+    minWidth: 0,
   },
   fileName: {
     color: "#ffffff",
     fontWeight: "800",
-    fontSize: 21,
+    fontSize: 20,
+    flexShrink: 1,
   },
   fileMeta: {
     color: "#9fb7df",
@@ -520,11 +535,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 10,
+    alignItems: "flex-start",
   },
   historyAction: {
     color: "#ffffff",
     fontWeight: "800",
     flex: 1,
+    minWidth: 0,
   },
   historyResult: {
     color: "#70e3ab",

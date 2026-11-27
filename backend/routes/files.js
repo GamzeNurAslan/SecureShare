@@ -361,7 +361,6 @@ router.post("/", upload.single("file"), async (req, res) => {
     }
 });
 
-
 // GET /api/files
 router.get("/", async (req, res) => {
     const db = req.app.locals.db;
@@ -1041,3 +1040,5 @@ router.get("/:id/view", async (req, res) => {
     }
 
 });
+
+module.exports = router;
