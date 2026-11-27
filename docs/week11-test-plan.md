@@ -20,28 +20,28 @@ Bu hafta proje teslimi öncesinde tüm modüllerin son kez test edilmesi, raporu
 
 ## Gamze’nin Görevleri
 
-- [ ] Web ve mobil uygulamanın uçtan uca kullanıcı senaryosunu test etmek.
-- [ ] Final raporunu düzenlemek.
-- [ ] Mimari, görev dağılımı, test sonuçları ve ekran görüntülerini rapora eklemek.
-- [ ] Sunum slaytlarını hazırlamak.
-- [ ] Demo sırasında izlenecek kayıt → giriş → yükleme → paylaşma → indirme senaryosunu hazırlamak.
+- [x] Web ve mobil uygulamanın uçtan uca kullanıcı senaryosunu test etmek. Kanıt: [week11-e2e-test-result.md](week11-e2e-test-result.md)
+- [x] Final raporunu düzenlemek. Çıktı: [final-rapor.md](final-rapor.md)
+- [x] Mimari, görev dağılımı, test sonuçları ve ekran görüntülerini rapora eklemek. Çıktı: [final-rapor.md](final-rapor.md)
+- [x] Sunum slaytlarını hazırlamak. Çıktı: [final-sunum.md](final-sunum.md)
+- [x] Demo sırasında izlenecek kayıt → giriş → yükleme → paylaşma → indirme senaryosunu hazırlamak. Çıktı: [final-demo-senaryosu.md](final-demo-senaryosu.md)
 
 ## Genel Kabul Kriterleri
 
-- [ ] Kullanıcı kayıt olabilir ve giriş yapabilir.
-- [ ] JWT ile korunan işlemler çalışır.
-- [ ] Dosya şifreli olarak MinIO’ya kaydedilir.
-- [ ] Dosya metadata bilgileri PostgreSQL’de bulunur.
-- [ ] Yetkili kullanıcı dosyayı indirebilir.
-- [ ] Yetki kaldırıldığında erişim engellenir.
-- [ ] Kritik işlemler audit log’a yazılır.
-- [ ] Otomatik testler başarılıdır.
-- [ ] Rapor, README ve sunum günceldir.
+- [x] Kullanıcı kayıt olabilir ve giriş yapabilir. Uçtan uca testte doğrulandı.
+- [x] JWT ile korunan işlemler çalışır. Yetkili istekler ve sahip olmayan kullanıcının geçmiş erişimi doğrulandı.
+- [x] Dosya şifreli olarak MinIO’ya kaydedilir. Backend şifreleme ve MinIO entegrasyon testleri başarılıdır.
+- [x] Dosya metadata bilgileri PostgreSQL’de bulunur. Uçtan uca yükleme ve silme akışında doğrulandı.
+- [x] Yetkili kullanıcı dosyayı indirebilir. İndirilen içerik kaynak içerikle eşleşti.
+- [x] Yetki kaldırıldığında erişim engellenir. Önceki hafta izin kaldırma testiyle doğrulandı.
+- [x] Kritik işlemler audit log’a yazılır. `FILE_UPLOADED`, `FILE_SHARED` ve `FILE_DOWNLOADED` görüldü.
+- [ ] Otomatik testler başarılıdır. 94 testten 93’ü başarılı; birim testte Pool bağımlılığı nedeniyle 1 açık bulunmaktadır.
+- [x] Rapor, README ve sunum günceldir. Final çıktıları bu hafta eklendi.
 
 ## Hafta Sonu Çıktıları
 
-- [ ] Teslime hazır SecureShare uygulaması.
-- [ ] Final teknik raporu.
-- [ ] Sunum dosyası.
-- [ ] Demo senaryosu.
-- [ ] Son test sonuçları ve ekran görüntüleri.
+- [x] Teslime hazır SecureShare uygulaması için çalıştırma ve test akışı.
+- [x] Final teknik raporu: [final-rapor.md](final-rapor.md)
+- [x] Sunum taslağı: [final-sunum.md](final-sunum.md)
+- [x] Demo senaryosu: [final-demo-senaryosu.md](final-demo-senaryosu.md)
+- [x] Son test sonuçları ve ekran görüntüleri: [week11-e2e-test-result.md](week11-e2e-test-result.md)
